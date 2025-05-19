@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealVote - 밥 투표</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">MealVote</a>
+            <div class="navbar-nav ms-auto" id="navItems">
+                <!-- 로그인 전 -->
+                <div id="beforeLogin">
+                    <button class="btn btn-light me-2" onclick="showLoginModal()">로그인</button>
+                    <button class="btn btn-outline-light" onclick="showRegisterModal()">회원가입</button>
+                </div>
+                <!-- 로그인 후 -->
+                <div id="afterLogin" style="display: none;">
+                    <span class="text-light me-3" id="userName"></span>
+                    <button class="btn btn-outline-light" onclick="logout()">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 학생용 투표 목록 -->
+        <div id="studentView" style="display: none;">
+            <h2>현재 진행중인 투표</h2>
+            <div id="activeVotes" class="row"></div>
+        </div>
+
+        <!-- 선생님용 관리 화면 -->
+        <div id="teacherView" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <h2>가게 관리</h2>
+                    <button class="btn btn-primary mb-3" onclick="showAddRestaurantModal()">가게 추가</button>
+                    <div id="restaurantList"></div>
+                </div>
+                <div class="col-md-6">
+                    <h2>투표 관리</h2>
+                    <button class="btn btn-primary mb-3" onclick="showCreateVoteModal()">투표 생성</button>
+                    <div id="voteHistory"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">로그인</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label">이메일</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">비밀번호</label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">로그인</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 회원가입 모달 -->
+    <div class="modal fade" id="registerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">회원가입</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label class="form-label">이름</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">이메일</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">비밀번호</label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">사용자 유형</label>
+                            <select class="form-select" name="userType" required>
+                                <option value="student">학생</option>
+                                <option value="teacher">선생님</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">회원가입</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/vote.js"></script>
+</body>
+</html> 
