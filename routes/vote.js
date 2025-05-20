@@ -1,137 +1,115 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/firebase');
-const { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    doc, 
-    getDoc, 
-    updateDoc, 
-    deleteDoc,
-    query,
-    where,
-    orderBy
-} = require('firebase/firestore');
+const pool = require('../config/database');
+const { requireAuth } = require('../middleware/auth');
 
-// 가게 목록 조회
-router.get('/restaurants', async (req, res) => {
+// 현재 진행 중인 투표 가져오기
+router.get('/current', requireAuth, async (req, res) => {
     try {
-        const restaurantsSnapshot = await getDocs(collection(db, 'restaurants'));
-        const restaurants = [];
-        restaurantsSnapshot.forEach(doc => {
-            restaurants.push({ id: doc.id, ...doc.data() });
-        });
-        res.json(restaurants);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
+        const now = new Date();
+        const [votes] = await pool.query(
+            'SELECT * FROM votes WHERE start_time <= ? AND end_time > ? ORDER BY created_at DESC LIMIT 1',
+            [now, now]
+        );
 
-// 가게 추가 (선생님만)
-router.post('/restaurants', async (req, res) => {
-    try {
-        const { name, menus } = req.body;
-        const restaurantData = {
-            name,
-            menus,
-            createdAt: new Date().toISOString()
-        };
-        const docRef = await addDoc(collection(db, 'restaurants'), restaurantData);
-        res.status(201).json({ id: docRef.id, ...restaurantData });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
-
-// 투표 생성 (선생님만)
-router.post('/votes', async (req, res) => {
-    try {
-        const { restaurantId, endTime } = req.body;
-        const restaurantDoc = await getDoc(doc(db, 'restaurants', restaurantId));
-        
-        if (!restaurantDoc.exists()) {
-            return res.status(404).json({ error: '가게를 찾을 수 없습니다.' });
+        if (votes.length === 0) {
+            return res.json(null);
         }
 
-        const voteData = {
-            restaurantId,
-            restaurantName: restaurantDoc.data().name,
-            menus: restaurantDoc.data().menus,
-            endTime,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            votes: {}
-        };
+        const vote = votes[0];
+        const [items] = await pool.query(
+            'SELECT * FROM vote_items WHERE vote_id = ?',
+            [vote.id]
+        );
 
-        const docRef = await addDoc(collection(db, 'votes'), voteData);
-        res.status(201).json({ id: docRef.id, ...voteData });
+        res.json({
+            id: vote.id,
+            title: vote.title,
+            description: vote.description,
+            startTime: vote.start_time,
+            endTime: vote.end_time,
+            items: items.map(item => ({
+                id: item.id,
+                name: item.name,
+                votes: item.votes
+            }))
+        });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error('투표 정보 가져오기 오류:', error);
+        res.status(500).json({ error: '투표 정보를 가져오는 중 오류가 발생했습니다.' });
     }
 });
 
-// 활성화된 투표 목록 조회
-router.get('/votes/active', async (req, res) => {
+// 투표 기록 가져오기
+router.get('/history', requireAuth, async (req, res) => {
     try {
-        const votesQuery = query(
-            collection(db, 'votes'),
-            where('status', '==', 'active'),
-            orderBy('createdAt', 'desc')
+        const now = new Date();
+        const [votes] = await pool.query(
+            'SELECT * FROM votes WHERE end_time <= ? ORDER BY end_time DESC LIMIT 10',
+            [now]
         );
-        
-        const votesSnapshot = await getDocs(votesQuery);
-        const votes = [];
-        votesSnapshot.forEach(doc => {
-            votes.push({ id: doc.id, ...doc.data() });
-        });
-        res.json(votes);
+
+        const votesWithItems = await Promise.all(votes.map(async vote => {
+            const [items] = await pool.query(
+                'SELECT * FROM vote_items WHERE vote_id = ?',
+                [vote.id]
+            );
+
+            return {
+                id: vote.id,
+                title: vote.title,
+                description: vote.description,
+                createdAt: vote.created_at,
+                startTime: vote.start_time,
+                endTime: vote.end_time,
+                items: items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    votes: item.votes
+                }))
+            };
+        }));
+
+        res.json(votesWithItems);
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error('투표 기록 가져오기 오류:', error);
+        res.status(500).json({ error: '투표 기록을 가져오는 중 오류가 발생했습니다.' });
     }
 });
 
 // 투표하기
-router.post('/votes/:voteId/vote', async (req, res) => {
+router.post('/:voteId/vote', requireAuth, async (req, res) => {
     try {
         const { voteId } = req.params;
-        const { userId, menuIndex } = req.body;
-        
-        const voteDoc = await getDoc(doc(db, 'votes', voteId));
-        if (!voteDoc.exists()) {
-            return res.status(404).json({ error: '투표를 찾을 수 없습니다.' });
+        const { itemId } = req.body;
+        const userId = req.session.user.id;
+
+        // 이미 투표했는지 확인
+        const [existingVotes] = await pool.query(
+            'SELECT * FROM vote_results WHERE vote_id = ? AND user_id = ?',
+            [voteId, userId]
+        );
+
+        if (existingVotes.length > 0) {
+            return res.status(400).json({ error: '이미 투표하셨습니다.' });
         }
 
-        const voteData = voteDoc.data();
-        if (voteData.status !== 'active') {
-            return res.status(400).json({ error: '종료된 투표입니다.' });
-        }
+        // 투표 결과 저장
+        await pool.query(
+            'INSERT INTO vote_results (vote_id, user_id, item_id) VALUES (?, ?, ?)',
+            [voteId, userId, itemId]
+        );
 
-        // 이전 투표 제거
-        const votes = voteData.votes || {};
-        delete votes[userId];
+        // 투표 수 업데이트
+        await pool.query(
+            'UPDATE vote_items SET votes = votes + 1 WHERE id = ?',
+            [itemId]
+        );
 
-        // 새 투표 추가
-        votes[userId] = menuIndex;
-
-        await updateDoc(doc(db, 'votes', voteId), { votes });
         res.json({ message: '투표가 완료되었습니다.' });
     } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
-
-// 투표 종료 (선생님만)
-router.post('/votes/:voteId/end', async (req, res) => {
-    try {
-        const { voteId } = req.params;
-        await updateDoc(doc(db, 'votes', voteId), {
-            status: 'ended',
-            endedAt: new Date().toISOString()
-        });
-        res.json({ message: '투표가 종료되었습니다.' });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error('투표 오류:', error);
+        res.status(500).json({ error: '투표 중 오류가 발생했습니다.' });
     }
 });
 

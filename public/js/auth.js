@@ -1,153 +1,143 @@
-// Firebase 초기화
-const firebaseConfig = {
-    apiKey: "AIzaSyCphjd0WbG3XThUidhGWsf8W_ppgvZ2SGI",
-    authDomain: "mealvote-f5008.firebaseapp.com",
-    projectId: "mealvote-f5008",
-    storageBucket: "mealvote-f5008.firebasestorage.app",
-    messagingSenderId: "688912681650",
-    appId: "1:688912681650:web:a055faa663e06cfb0457ab"
-};
+// 현재 페이지가 로그인 페이지인지 확인
+const isAuthPage = window.location.pathname === '/login';
 
-firebase.initializeApp(firebaseConfig);
+// 에러 메시지 표시 요소
+const authError = document.getElementById('authError');
+// 성공 메시지 표시 요소
+const authSuccess = document.getElementById('authSuccess');
 
-// 모달 인스턴스
-let loginModal, registerModal;
+// 모든 메시지 숨김 함수
+function hideAllMessages() {
+    authError.classList.add('d-none');
+    authError.textContent = '';
+    authSuccess.classList.add('d-none');
+    authSuccess.textContent = '';
+}
 
-// DOM이 로드된 후 실행
-document.addEventListener('DOMContentLoaded', () => {
-    loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
-    registerModal = new bootstrap.Modal(document.getElementById('registerModal'));
+// 에러 메시지 표시 함수
+function showAuthError(message) {
+    hideAllMessages(); // 다른 메시지 모두 숨김
+    authError.textContent = message;
+    authError.classList.remove('d-none');
+}
 
-    // 로그인 폼 제출
+// 성공 메시지 표시 함수
+function showAuthSuccess(message) {
+    hideAllMessages(); // 다른 메시지 모두 숨김
+    authSuccess.textContent = message;
+    authSuccess.classList.remove('d-none');
+}
+
+// 로그인 상태 확인
+async function checkAuthState() {
+    try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+            const data = await response.json();
+            if (isAuthPage) {
+                window.location.href = '/';
+            } else {
+                document.getElementById('userName').textContent = data.user.name;
+            }
+        } else {
+            if (!isAuthPage) {
+                window.location.href = '/login';
+            }
+        }
+    } catch (error) {
+        console.error('인증 상태 확인 오류:', error);
+    }
+}
+
+// 페이지 로드 시 인증 상태 확인
+// 로그인 페이지가 아닐 때만 인증 상태 확인 함수 호출
+if (!isAuthPage) {
+    checkAuthState();
+}
+
+// 로그인 폼 제출
+if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
+        hideAllMessages(); // 새로운 요청 전에 모든 메시지 숨김
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    email: formData.get('email'),
-                    password: formData.get('password')
-                })
+                body: JSON.stringify({ email, password })
             });
 
             const data = await response.json();
             if (response.ok) {
-                loginModal.hide();
-                updateUI(data.user);
+                window.location.href = '/';
             } else {
-                alert(data.error);
+                showAuthError(data.error); // alert 대신 에러 메시지 표시
             }
         } catch (error) {
-            alert('로그인 중 오류가 발생했습니다.');
+            console.error('로그인 중 오류:', error);
+            showAuthError('로그인 중 오류가 발생했습니다.'); // alert 대신 에러 메시지 표시
         }
     });
+}
 
-    // 회원가입 폼 제출
+// 회원가입 폼 제출
+if (document.getElementById('registerForm')) {
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
+        hideAllMessages(); // 새로운 요청 전에 모든 메시지 숨김
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        const name = e.target.name.value;
+        const userType = e.target.userType.value;
+
         try {
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    email: formData.get('email'),
-                    password: formData.get('password'),
-                    name: formData.get('name'),
-                    userType: formData.get('userType')
-                })
+                body: JSON.stringify({ email, password, name, userType })
             });
 
             const data = await response.json();
             if (response.ok) {
-                registerModal.hide();
-                alert('회원가입이 완료되었습니다. 이메일 인증을 확인해주세요.');
+                // 회원가입 성공 후 로그인 탭으로 전환
+                const loginTab = document.getElementById('login-tab');
+                const loginTabInstance = new bootstrap.Tab(loginTab);
+                loginTabInstance.show();
+                
+                // 폼 초기화
+                e.target.reset();
+                
+                showAuthSuccess('회원가입이 완료되었습니다. 로그인해주세요.'); // alert 대신 성공 메시지 표시
             } else {
-                alert(data.error);
+                showAuthError(data.error); // alert 대신 에러 메시지 표시
             }
         } catch (error) {
-            alert('회원가입 중 오류가 발생했습니다.');
+            console.error('회원가입 중 오류:', error);
+            showAuthError('회원가입 중 오류가 발생했습니다.'); // alert 대신 에러 메시지 표시
         }
     });
-
-    // 로그인 상태 확인
-    checkAuthState();
-});
-
-// 로그인 모달 표시
-function showLoginModal() {
-    loginModal.show();
-}
-
-// 회원가입 모달 표시
-function showRegisterModal() {
-    registerModal.show();
 }
 
 // 로그아웃
 async function logout() {
     try {
-        await fetch('/api/auth/logout', {
+        const response = await fetch('/api/auth/logout', {
             method: 'POST'
         });
-        updateUI(null);
+        
+        if (response.ok) {
+            window.location.href = '/login';
+        } else {
+            alert('로그아웃 중 오류가 발생했습니다.');
+        }
     } catch (error) {
         alert('로그아웃 중 오류가 발생했습니다.');
     }
-}
-
-// UI 업데이트
-function updateUI(user) {
-    const beforeLogin = document.getElementById('beforeLogin');
-    const afterLogin = document.getElementById('afterLogin');
-    const userName = document.getElementById('userName');
-    const studentView = document.getElementById('studentView');
-    const teacherView = document.getElementById('teacherView');
-
-    if (user) {
-        beforeLogin.style.display = 'none';
-        afterLogin.style.display = 'block';
-        userName.textContent = user.name;
-
-        if (user.userType === 'student') {
-            studentView.style.display = 'block';
-            teacherView.style.display = 'none';
-            loadActiveVotes();
-        } else {
-            studentView.style.display = 'none';
-            teacherView.style.display = 'block';
-            loadRestaurants();
-            loadVoteHistory();
-        }
-    } else {
-        beforeLogin.style.display = 'block';
-        afterLogin.style.display = 'none';
-        studentView.style.display = 'none';
-        teacherView.style.display = 'none';
-    }
-}
-
-// 인증 상태 확인
-function checkAuthState() {
-    firebase.auth().onAuthStateChanged(async (user) => {
-        if (user) {
-            try {
-                const response = await fetch(`/api/auth/user/${user.uid}`);
-                const data = await response.json();
-                if (response.ok) {
-                    updateUI(data.user);
-                }
-            } catch (error) {
-                console.error('사용자 정보를 가져오는 중 오류가 발생했습니다.');
-            }
-        } else {
-            updateUI(null);
-        }
-    });
 } 

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인/회원가입 - MealVote</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-container {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem 2rem 2rem 2rem;
+        }
+        .nav-tabs {
+            border: none;
+            margin-bottom: 2rem;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 1rem 2rem;
+            border-radius: 0;
+            transition: color 0.2s;
+        }
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            border-bottom: 3px solid #0d6efd;
+            background: none;
+        }
+        .nav-tabs .nav-link:focus {
+            outline: none;
+        }
+        .form-control {
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            border: 1px solid #dee2e6;
+            font-size: 1rem;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 0.15rem rgba(13,110,253,0.15);
+            border-color: #86b7fe;
+        }
+        .input-group-text {
+            background: #f8f9fa;
+            border-right: none;
+            border-radius: 10px 0 0 10px;
+        }
+        .input-group .form-control {
+            border-left: none;
+            border-radius: 0 10px 10px 0;
+        }
+        .btn-primary {
+            border-radius: 10px;
+            padding: 0.8rem 2rem;
+            font-weight: 500;
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            border: none;
+            width: 100%;
+            margin-top: 1rem;
+            font-size: 1.1rem;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+        }
+        .form-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        @media (max-width: 600px) {
+            .auth-container {
+                padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+                max-width: 98vw;
+            }
+            .nav-tabs .nav-link {
+                padding: 0.7rem 0.5rem;
+                font-size: 0.98rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <ul class="nav nav-tabs justify-content-center" id="authTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">
+                    <i class="fas fa-sign-in-alt me-2"></i>로그인
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">
+                    <i class="fas fa-user-plus me-2"></i>회원가입
+                </button>
+            </li>
+        </ul>
+        <!-- 에러 메시지 표시 영역 -->
+        <div id="authError" class="alert alert-danger d-none" role="alert">
+            <!-- 에러 메시지가 여기에 표시됩니다 -->
+        </div>
+        <!-- 성공 메시지 표시 영역 -->
+        <div id="authSuccess" class="alert alert-success d-none" role="alert">
+            <!-- 성공 메시지가 여기에 표시됩니다 -->
+        </div>
+        <div class="tab-content" id="authTabsContent">
+            <!-- 로그인 폼 -->
+            <div class="tab-pane fade show active" id="login" role="tabpanel">
+                <form id="loginForm" autocomplete="off">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                        <input type="text" class="form-control" name="email" placeholder="이메일 또는 이름" required>
+                    </div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" name="password" placeholder="비밀번호" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>로그인
+                    </button>
+                </form>
+            </div>
+            <!-- 회원가입 폼 -->
+            <div class="tab-pane fade" id="register" role="tabpanel">
+                <form id="registerForm" autocomplete="off">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                        <input type="email" class="form-control" name="email" placeholder="이메일" required>
+                    </div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" name="password" placeholder="비밀번호" required>
+                    </div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" name="name" placeholder="이름" required>
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" name="userType" required>
+                            <option value="student">학생</option>
+                            <option value="teacher">선생님</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-2"></i>회원가입
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/auth.js"></script>
+</body>
+</html> 
