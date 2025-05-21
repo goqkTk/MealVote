@@ -114,7 +114,7 @@ if (document.getElementById('registerForm')) {
                 // 폼 초기화
                 e.target.reset();
                 
-                showAuthSuccess('회원가입이 완료되었습니다. 로그인해주세요.'); // alert 대신 성공 메시지 표시
+                showAuthSuccess('회원가입이 완료되었습니다. 이메일로 발송된 인증 링크를 확인해주세요.'); // alert 대신 성공 메시지 표시
             } else {
                 showAuthError(data.error); // alert 대신 에러 메시지 표시
             }
