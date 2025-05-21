@@ -59,7 +59,7 @@ if (!isAuthPage) {
 if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        hideAllMessages(); // 새로운 요청 전에 모든 메시지 숨김
+        hideAllMessages();
         const email = e.target.email.value;
         const password = e.target.password.value;
 
@@ -76,11 +76,11 @@ if (document.getElementById('loginForm')) {
             if (response.ok) {
                 window.location.href = '/';
             } else {
-                showAuthError(data.error); // alert 대신 에러 메시지 표시
+                showAuthError(data.error);
             }
         } catch (error) {
             console.error('로그인 중 오류:', error);
-            showAuthError('로그인 중 오류가 발생했습니다.'); // alert 대신 에러 메시지 표시
+            showAuthError('로그인 중 오류가 발생했습니다.');
         }
     });
 }
@@ -94,6 +94,12 @@ if (document.getElementById('registerForm')) {
         const password = e.target.password.value;
         const name = e.target.name.value;
         const userType = e.target.userType.value;
+
+        // 이메일 도메인 검증
+        if (!email.endsWith('@sonline20.sen.go.kr')) {
+            showAuthError('(@sonline20.sen.go.kr)만 사용 가능합니다');
+            return;
+        }
 
         try {
             const response = await fetch('/api/auth/register', {
@@ -140,4 +146,19 @@ async function logout() {
     } catch (error) {
         alert('로그아웃 중 오류가 발생했습니다.');
     }
-} 
+}
+
+// URL 쿼리 파라미터 확인 및 메시지 표시
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const success = urlParams.get('success');
+
+    if (error === 'invalid_token') {
+        showAuthError('유효하지 않거나 만료된 인증 링크입니다.');
+    } else if (error === 'verification_failed') {
+        showAuthError('이메일 인증 중 오류가 발생했습니다.');
+    } else if (success === 'verified') {
+        showAuthSuccess('이메일 인증이 완료되었습니다. 로그인해주세요.');
+    }
+}); 

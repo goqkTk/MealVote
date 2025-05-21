@@ -5,11 +5,48 @@ const pool = require('../config/database');
 const crypto = require('crypto');
 const transporter = require('../config/email');
 
+// URL 암호화를 위한 키 (32바이트)
+const ENCRYPTION_KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
+const IV_LENGTH = 16;
+
+// JWT 시크릿 키
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// URL 암호화 함수
+function encryptUrl(text) {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+}
+
+// URL 복호화 함수
+function decryptUrl(text) {
+    try {
+        const textParts = text.split(':');
+        const iv = Buffer.from(textParts.shift(), 'hex');
+        const encryptedText = textParts.join(':');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch (error) {
+        console.error('URL 복호화 오류:', error);
+        throw new Error('유효하지 않은 인증 링크입니다.');
+    }
+}
+
 // 회원가입
 router.post('/register', async (req, res) => {
     try {
         const { email, password, userType, name } = req.body;
         
+        // 이메일 도메인 검증
+        if (!email.endsWith('@sonline20.sen.go.kr')) {
+            return res.status(400).json({ error: '(@sonline20.sen.go.kr)만 사용 가능합니다.' });
+        }
+
         // 이메일 중복 확인
         const [existingUsers] = await pool.query(
             'SELECT * FROM users WHERE email = ?',
@@ -25,40 +62,44 @@ router.post('/register', async (req, res) => {
 
         // 인증 토큰 생성
         const verificationToken = crypto.randomBytes(32).toString('hex');
+        // 토큰 만료 시간 설정 (30분)
+        const tokenExpires = new Date(Date.now() + 30 * 60 * 1000);
 
         // 사용자 정보 저장
         const [result] = await pool.query(
-            'INSERT INTO users (email, password, name, user_type, verification_token, is_verified) VALUES (?, ?, ?, ?, ?, ?)',
-            [email, hashedPassword, name, userType, verificationToken, false]
+            'INSERT INTO users (email, password, name, user_type, verification_token, verification_token_expires, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [email, hashedPassword, name, userType, verificationToken, tokenExpires, false]
         );
 
-        // 인증 이메일 전송
-        const verificationUrl = `${process.env.BASE_URL}/api/auth/verify/${verificationToken}`;
+        // 인증 URL 생성 및 암호화
+        const verificationUrl = `${process.env.BASE_URL}/verify/${encryptUrl(verificationToken)}`;
+        
         try {
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
                 to: email,
                 subject: 'MealVote 이메일 인증',
                 html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h1 style="color: #0d6efd; text-align: center;">MealVote 이메일 인증</h1>
-                        <p style="font-size: 16px; line-height: 1.6;">안녕하세요, ${name}님!</p>
-                        <p style="font-size: 16px; line-height: 1.6;">MealVote 회원가입을 완료하기 위해 아래 링크를 클릭해주세요:</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${verificationUrl}" 
-                               style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                                이메일 인증하기
-                            </a>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px;">
+                        <div style="max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 5px;">
+                            <p style="text-align: center; font-size: 18px; margin: 0 0 10px;">MealVote</p>
+                            <h1 style="color: #BDD971; margin: 0 0 15px; text-align: center; font-size: 24px;">이메일 인증</h1>
+                            <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;">
+                            <p>안녕하세요,</p>
+                            <p>아래 버튼을 클릭하여 회원가입을 완료하세요</p>
+                            <div style="margin-top: 20px;">
+                                <a href="${verificationUrl}" style="background-color: #BDD971; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">이메일 인증</a>
+                            </div>
+                            <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd; margin: 15px 0;">
+                            <p style="margin-top: 20px;">30분 동안 유효하며,<br>버튼이 작동하지 않을 경우 아래 링크로 접속해주세요</p>
+                            <p style="color: gray;">${verificationUrl}</p>
                         </div>
-                        <p style="font-size: 14px; color: #666;">이 링크는 24시간 동안 유효합니다.</p>
-                        <p style="font-size: 14px; color: #666;">본 메일은 발신 전용입니다. 문의사항은 관리자에게 연락해주세요.</p>
-                    </div>
+                    </body>
                 `
             });
             console.log('인증 이메일 전송 성공:', email);
         } catch (emailError) {
             console.error('이메일 전송 오류:', emailError);
-            // 이메일 전송 실패 시에도 회원가입은 완료
             return res.status(201).json({ 
                 message: '회원가입이 완료되었습니다. 이메일 전송에 실패했습니다. 관리자에게 문의해주세요.',
                 error: '이메일 전송 실패'
@@ -73,30 +114,33 @@ router.post('/register', async (req, res) => {
 });
 
 // 이메일 인증
-router.get('/verify/:token', async (req, res) => {
+router.get('/verify/:encryptedToken', async (req, res) => {
     try {
-        const { token } = req.params;
+        const encryptedToken = req.params.encryptedToken;
+        const verificationToken = decryptUrl(encryptedToken);
 
-        // 토큰으로 사용자 찾기
+        // 토큰으로 사용자 찾기 (만료 시간도 확인)
         const [users] = await pool.query(
-            'SELECT * FROM users WHERE verification_token = ?',
-            [token]
+            'SELECT * FROM users WHERE verification_token = ? AND verification_token_expires > NOW()',
+            [verificationToken]
         );
 
         if (users.length === 0) {
-            return res.status(400).json({ error: '유효하지 않은 인증 토큰입니다.' });
+            // 인증 실패 시 로그인 페이지로 리다이렉트
+            return res.redirect('/login?error=invalid_token');
         }
 
         // 사용자 인증 상태 업데이트
         await pool.query(
-            'UPDATE users SET is_verified = true, verification_token = NULL WHERE verification_token = ?',
-            [token]
+            'UPDATE users SET is_verified = true, verification_token = NULL, verification_token_expires = NULL WHERE verification_token = ?',
+            [verificationToken]
         );
 
-        res.json({ message: '이메일이 성공적으로 인증되었습니다.' });
+        // 인증 성공 시 로그인 페이지로 리다이렉트
+        res.redirect('/login?success=verified');
     } catch (error) {
         console.error('이메일 인증 오류:', error);
-        res.status(500).json({ error: '이메일 인증 중 오류가 발생했습니다.' });
+        res.redirect('/login?error=verification_failed');
     }
 });
 
@@ -143,7 +187,10 @@ router.post('/login', async (req, res) => {
             userType: user.user_type
         };
 
-        res.status(200).json({ message: '로그인 성공', user: req.session.user });
+        res.status(200).json({ 
+            message: '로그인 성공',
+            user: req.session.user
+        });
 
     } catch (error) {
         console.error('로그인 오류:', error);
@@ -169,4 +216,8 @@ router.get('/me', (req, res) => {
     res.json({ user: req.session.user });
 });
 
-module.exports = router; 
+module.exports = {
+    router,
+    encryptUrl,
+    decryptUrl
+}; 
