@@ -32,6 +32,7 @@ app.set('views', path.join(__dirname, 'views'));
 // 라우트 설정
 app.use('/api/auth', authRouter);
 app.use('/api/votes', voteRoutes);
+app.use('/api/restaurants', require('./routes/restaurant'));
 
 // 이메일 인증 라우트 (API 엔드포인트 숨김)
 app.get('/verify/:encryptedToken', async (req, res) => {

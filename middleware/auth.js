@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 const requireAuth = (req, res, next) => {
     // 세션에 사용자 정보가 있는지 확인
     if (!req.session || !req.session.user) {
-        // 세션이 없거나 사용자 정보가 없으면 인증 실패
-        return res.status(401).json({ error: '인증이 필요합니다.' });
+        // 세션이 없거나 사용자 정보가 없으면 로그인 페이지로 리다이렉트
+        return res.redirect('/login');
     }
 
     // 세션에 사용자 정보가 있으면 다음 미들웨어 또는 라우트 핸들러로 진행
