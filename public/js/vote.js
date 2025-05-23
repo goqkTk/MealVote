@@ -77,31 +77,125 @@ function escapeHTML(str) {
               .replace(/'/g, '&#039;');
 }
 
+// 날짜 형식을 YYYY.MM.DD 오전/오후 HH:mm으로 변경하는 함수
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        return dateString; // 유효하지 않은 날짜면 원본 반환
+    }
+
+    const year = date.getFullYear();
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const day = ('0' + date.getDate()).slice(-2);
+    let hours = date.getHours();
+    const minutes = ('0' + date.getMinutes()).slice(-2);
+    const ampm = hours >= 12 ? '오후' : '오전';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0시는 12시로
+
+    return `${year}.${month}.${day} ${ampm} ${hours}:${minutes}`;
+}
+
+// 날짜만 YYYY.MM.DD 형식으로 변경하는 함수
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        return dateString; // 유효하지 않은 날짜면 원본 반환
+    }
+
+    const year = date.getFullYear();
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const day = ('0' + date.getDate()).slice(-2);
+
+    return `${year}.${month}.${day}`;
+}
+
 // 현재 진행 중인 투표 표시
 function displayCurrentVote(vote) {
-    const currentVoteDiv = document.getElementById('currentVote');
     if (!vote) {
-        currentVoteDiv.innerHTML = '<p class="text-muted">현재 진행 중인 투표가 없습니다.</p>';
+        document.getElementById('currentVote').innerHTML = '<p class="text-muted">현재 진행 중인 투표가 없습니다.</p>';
         return;
     }
 
+    const currentVoteDiv = document.getElementById('currentVote');
     currentVoteDiv.innerHTML = `
         <div class="card mb-3">
             <div class="card-body">
-                <h5 class="card-title">${escapeHTML(vote.title)}</h5>
-                <p class="card-text">${escapeHTML(vote.description)}</p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">${vote.title}</h5>
+                    <div class="teacher-actions">
+                        <button class="btn btn-danger btn-sm" onclick="endVote('${vote.id}')">
+                            <i class="fas fa-stop-circle me-1"></i>투표 마감
+                        </button>
+                    </div>
+                </div>
+                <p class="card-text">${vote.description || ''}</p>
+                <p class="text-muted">
+                    <span><i class="fas fa-calendar me-2"></i>${formatDate(vote.voteDate)}</span>
+                    <span><i class="fas fa-clock ms-3 me-2"></i>마감: ${formatDateTime(vote.endTime)}</span>
+                </p>
                 <div class="list-group">
-                    ${vote.items.map(item => `
+                    ${vote.menus.map(menu => `
                         <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
-                                onclick="vote('${vote.id}', '${item.id}')">
-                            ${escapeHTML(item.name)}
-                            <span class="badge bg-primary rounded-pill">${item.votes}표</span>
+                                onclick="vote('${vote.id}', '${menu.id}')">
+                            ${menu.name}
+                            <span class="badge bg-primary rounded-pill" onclick="showVoters('${vote.id}', '${menu.id}', '${menu.name}', event)">
+                                ${menu.votes}표
+                            </span>
                         </button>
                     `).join('')}
                 </div>
             </div>
         </div>
     `;
+}
+
+// 투표자 목록 표시
+async function showVoters(voteId, menuId, menuName, event) {
+    event.stopPropagation(); // 투표 버튼 클릭 이벤트 전파 방지
+    
+    try {
+        const response = await fetch(`/api/votes/${voteId}/voters?menuId=${menuId}`);
+        if (response.ok) {
+            const voters = await response.json();
+            const votersList = document.getElementById('votersList');
+            const modalTitle = document.getElementById('votersModalTitle');
+            
+            modalTitle.textContent = `${menuName}`;
+            
+            if (voters.length === 0) {
+                votersList.innerHTML = '<p class="text-muted">아직 투표한 사람이 없습니다.</p>';
+            } else {
+                votersList.innerHTML = `
+                    <ul class="list-unstyled">
+                        ${voters.map(voter => `
+                            <li class="voter-name">${voter.name}</li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('votersModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('투표자 목록 조회 오류:', error);
+        alert('투표자 목록을 가져오는 중 오류가 발생했습니다.');
+    }
+}
+
+// 투표 기록 로드
+async function loadVoteHistory() {
+    try {
+        // 초기에는 최대 2개만 표시
+        const response = await fetch('/api/votes/history?limit=2');
+        if (response.ok) {
+            const votes = await response.json();
+            displayVoteHistory(votes);
+        }
+    } catch (error) {
+        console.error('투표 기록 로드 오류:', error);
+    }
 }
 
 // 투표 기록 표시
@@ -115,21 +209,76 @@ function displayVoteHistory(votes) {
     historyDiv.innerHTML = votes.map(vote => `
         <div class="card mb-3">
             <div class="card-body">
-                <h6 class="card-title">${escapeHTML(vote.title)}</h6>
+                <h6 class="card-title">${vote.title}</h6>
                 <p class="card-text small text-muted">
-                    ${new Date(vote.createdAt).toLocaleDateString()}
+                    <span><i class="fas fa-calendar me-2"></i>${formatDate(vote.voteDate)}</span>
                 </p>
                 <div class="list-group list-group-flush">
-                    ${vote.items.map(item => `
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            ${escapeHTML(item.name)}
-                            <span class="badge bg-primary rounded-pill">${item.votes}표</span>
+                    ${vote.menus.map(menu => `
+                        <div class="list-group-item d-flex justify-content-between align-items-center ${menu.user_voted ? 'bg-light' : ''}">
+                            ${menu.name}
+                            <div>
+                                ${menu.user_voted ? '<span class="badge bg-success me-2">내 선택</span>' : ''}
+                                <span class="badge bg-primary rounded-pill" onclick="showVoters('${vote.id}', '${menu.id}', '${menu.name}', event)">
+                                    ${menu.votes}표
+                                </span>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
             </div>
         </div>
     `).join('');
+}
+
+// 전체 투표 기록 표시 (모달용)
+function displayAllVoteHistory(votes) {
+    const allHistoryDiv = document.getElementById('allVoteHistoryList');
+    if (votes.length === 0) {
+        allHistoryDiv.innerHTML = '<p class="text-muted">투표 기록이 없습니다.</p>';
+        return;
+    }
+
+    allHistoryDiv.innerHTML = votes.map(vote => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-title">${vote.title}</h6>
+                <p class="card-text small text-muted">
+                     <span><i class="fas fa-calendar me-2"></i>${formatDate(vote.voteDate)}</span>
+                </p>
+                <div class="list-group list-group-flush">
+                    ${vote.menus.map(menu => `
+                        <div class="list-group-item d-flex justify-content-between align-items-center ${menu.user_voted ? 'bg-light' : ''}">
+                            ${menu.name}
+                            <div>
+                                ${menu.user_voted ? '<span class="badge bg-success me-2">내 선택</span>' : ''}
+                                <span class="badge bg-primary rounded-pill" onclick="showVoters('${vote.id}', '${menu.id}', '${menu.name}', event)">
+                                    ${menu.votes}표
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 전체 투표 기록 가져오기 및 모달 표시
+async function showAllVoteHistory() {
+    try {
+        const response = await fetch('/api/votes/history'); // limit 없이 모든 기록 가져오기
+        if (response.ok) {
+            const votes = await response.json();
+            displayAllVoteHistory(votes);
+            
+            const modal = new bootstrap.Modal(document.getElementById('allVoteHistoryModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('전체 투표 기록 로드 오류:', error);
+        alert('전체 투표 기록을 가져오는 중 오류가 발생했습니다.');
+    }
 }
 
 // 투표하기
@@ -485,63 +634,28 @@ async function vote(voteId, menuId) {
     }
 }
 
-// 현재 진행 중인 투표 표시
-function displayCurrentVote(vote) {
-    if (!vote) {
-        document.getElementById('currentVote').innerHTML = '<p class="text-muted">현재 진행 중인 투표가 없습니다.</p>';
+// 투표 마감 함수
+async function endVote(voteId) {
+    if (!confirm('정말로 이 투표를 마감하시겠습니까?')) {
         return;
     }
 
-    const currentVoteDiv = document.getElementById('currentVote');
-    currentVoteDiv.innerHTML = `
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">${vote.title}</h5>
-                <p class="card-text">${vote.description || ''}</p>
-                <p class="text-muted">
-                    <i class="fas fa-calendar me-2"></i>${new Date(vote.voteDate).toLocaleDateString()}
-                    <i class="fas fa-clock ms-3 me-2"></i>마감: ${new Date(vote.endTime).toLocaleString()}
-                </p>
-                <div class="list-group">
-                    ${vote.menus.map(menu => `
-                        <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
-                                onclick="vote('${vote.id}', '${menu.id}')">
-                            ${menu.name}
-                            <span class="badge bg-primary rounded-pill">${menu.votes}표</span>
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-}
+    try {
+        const response = await fetch(`/api/votes/${voteId}/end`, {
+            method: 'POST'
+        });
 
-// 투표 기록 표시
-function displayVoteHistory(votes) {
-    const historyDiv = document.getElementById('voteHistory');
-    if (votes.length === 0) {
-        historyDiv.innerHTML = '<p class="text-muted">투표 기록이 없습니다.</p>';
-        return;
+        if (response.ok) {
+            loadCurrentVote();
+            loadVoteHistory();
+        } else {
+            const data = await response.json();
+            alert(data.error);
+        }
+    } catch (error) {
+        console.error('투표 마감 오류:', error);
+        alert('투표 마감 중 오류가 발생했습니다.');
     }
-
-    historyDiv.innerHTML = votes.map(vote => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <h6 class="card-title">${vote.title}</h6>
-                <p class="card-text small text-muted">
-                    <i class="fas fa-calendar me-2"></i>${new Date(vote.voteDate).toLocaleDateString()}
-                </p>
-                <div class="list-group list-group-flush">
-                    ${vote.menus.map(menu => `
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            ${menu.name}
-                            <span class="badge bg-primary rounded-pill">${menu.votes}표</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `).join('');
 }
 
 // 페이지 로드 시 실행
@@ -590,19 +704,6 @@ async function loadCurrentVote() {
         }
     } catch (error) {
         console.error('투표 정보 로드 오류:', error);
-    }
-}
-
-// 투표 기록 로드
-async function loadVoteHistory() {
-    try {
-        const response = await fetch('/api/votes/history');
-        if (response.ok) {
-            const votes = await response.json();
-            displayVoteHistory(votes);
-        }
-    } catch (error) {
-        console.error('투표 기록 로드 오류:', error);
     }
 }
 
@@ -683,4 +784,64 @@ function toggleMenuSelection(card, menuId) {
     const checkbox = card.querySelector('input[type="checkbox"]');
     checkbox.checked = !checkbox.checked;
     card.classList.toggle('selected');
-} 
+}
+
+// Socket.IO 초기화
+const socket = io({
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+});
+
+// 실시간 이벤트 리스너
+socket.on('welcome', (data) => {
+    // showNotification(data.message);
+});
+
+socket.on('voteCreated', (data) => {
+    loadCurrentVote();
+    // showNotification(data.message);
+});
+
+socket.on('voteUpdated', (data) => {
+    loadCurrentVote();
+    loadVoteHistory();
+    // showNotification(data.message);
+});
+
+// 연결 상태 모니터링
+socket.on('connect', () => {
+    // showNotification('실시간 업데이트가 연결되었습니다.');
+});
+
+socket.on('disconnect', () => {
+    // showNotification('실시간 업데이트 연결이 끊어졌습니다. 재연결을 시도합니다...');
+});
+
+socket.on('connect_error', (error) => {
+    // showNotification('실시간 업데이트 연결 오류가 발생했습니다.');
+});
+
+socket.on('reconnect', (attemptNumber) => {
+    // showNotification('실시간 업데이트가 재연결되었습니다.');
+});
+
+socket.on('reconnect_error', (error) => {
+    // showNotification('실시간 업데이트 연결 오류가 발생했습니다.');
+});
+
+// 알림 표시 함수
+function showNotification(message) {
+    // 이 함수는 더 이상 사용되지 않습니다.
+    // 필요시 다시 활성화하거나 다른 알림 시스템을 사용하세요.
+    // console.log('Notification:', message);
+}
+
+// Socket.IO 이벤트 리스너에 투표 마감 이벤트 추가
+socket.on('voteEnded', (data) => {
+    console.log('투표가 마감되었습니다:', data);
+    loadCurrentVote();
+    loadVoteHistory();
+    // showNotification(data.message);
+}); 

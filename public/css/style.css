@@ -165,4 +165,18 @@ body {
 
 .calendar-days .day.today {
     border: 1px solid #0d6efd;
+}
+
+/* 알림 스타일 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+}
+
+.notification .alert {
+    margin-bottom: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 } 
