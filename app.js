@@ -42,6 +42,9 @@ app.use(session({
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// VAPID 공개 키 로드
+const publicVapidKey = process.env.WEB_PUSH_PUBLIC_KEY;
+
 // 라우트 설정
 app.use('/api/auth', authRouter);
 app.use('/api/votes', voteRouter);
@@ -83,7 +86,7 @@ app.get('/login', (req, res) => {
 
 // 메인 페이지 (인증 필요)
 app.get('/', requireAuth, (req, res) => {
-    res.render('index');
+    res.render('index', { publicVapidKey: publicVapidKey });
 });
 
 // Socket.IO 연결 처리

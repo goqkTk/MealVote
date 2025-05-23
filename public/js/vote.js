@@ -212,6 +212,12 @@ async function showVoters(voteId, menuId, menuName, event) {
     }
 }
 
+// 설정 모달 표시
+function showSettingsModal() {
+    const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    settingsModal.show();
+}
+
 // 투표 기록 로드
 async function loadVoteHistory() {
     try {
