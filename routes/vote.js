@@ -60,14 +60,13 @@ router.get('/history', requireAuth, async (req, res) => {
         const limit = req.query.limit ? parseInt(req.query.limit) : 10;
 
         const [votes] = await pool.query(`
-            SELECT DISTINCT v.*, r.name as restaurantName
+            SELECT v.*, r.name as restaurantName
             FROM votes v
             JOIN restaurants r ON v.restaurant_id = r.id
-            JOIN vote_records vr ON v.id = vr.vote_id
-            WHERE vr.user_id = ?
+            WHERE v.end_time <= NOW()
             ORDER BY v.end_time DESC
             LIMIT ?
-        `, [req.user.id, limit]);
+        `, [limit]);
 
         // 각 투표의 메뉴와 투표 수 조회 및 날짜 필드 형식 변환
         for (let vote of votes) {
@@ -83,13 +82,13 @@ router.get('/history', requireAuth, async (req, res) => {
                 SELECT m.*, COUNT(vr.id) as votes,
                        EXISTS(SELECT 1 FROM vote_records vr2 
                              JOIN vote_items vi2 ON vr2.vote_item_id = vi2.id 
-                             WHERE vi2.vote_id = ? AND vr2.user_id = ? AND vi2.menu_id = m.id) as user_voted
+                             WHERE vi2.vote_id = vi.vote_id AND vr2.user_id = ? AND vi2.menu_id = m.id) as user_voted
                 FROM vote_items vi
                 JOIN menus m ON vi.menu_id = m.id
                 LEFT JOIN vote_records vr ON vr.vote_item_id = vi.id
                 WHERE vi.vote_id = ?
                 GROUP BY m.id
-            `, [vote.id, req.user.id, vote.id]);
+            `, [req.user.id, vote.id]);
             vote.menus = menus;
         }
 

@@ -111,7 +111,15 @@ function formatDate(dateString) {
 }
 
 // 현재 진행 중인 투표 표시
+let voteTimer;
+
 function displayCurrentVote(vote) {
+    // 기존 타이머가 있으면 해제
+    if (voteTimer) {
+        clearInterval(voteTimer);
+        voteTimer = null;
+    }
+
     if (!vote) {
         document.getElementById('currentVote').innerHTML = '<p class="text-muted">현재 진행 중인 투표가 없습니다.</p>';
         return;
@@ -140,7 +148,7 @@ function displayCurrentVote(vote) {
                                 onclick="vote('${vote.id}', '${menu.id}')">
                             ${menu.name}
                             <span class="badge bg-primary rounded-pill" onclick="showVoters('${vote.id}', '${menu.id}', '${menu.name}', event)">
-                                ${menu.votes}표
+                                ${vote.user_voted_item_id === menu.id ? '내 선택 / ' : ''}${menu.votes}표
                             </span>
                         </button>
                     `).join('')}
@@ -148,6 +156,26 @@ function displayCurrentVote(vote) {
             </div>
         </div>
     `;
+
+    // 마감 시간 설정 및 타이머 시작
+    const endTime = new Date(vote.endTime).getTime();
+    const now = new Date().getTime();
+    const timeRemaining = endTime - now;
+
+    if (timeRemaining > 0) {
+        // 마감 시간까지 남은 시간 계산 후 해당 시간에 loadCurrentVote 실행
+        voteTimer = setTimeout(() => {
+            console.log('투표 마감 시간 도달, 투표 정보 새로고침');
+            loadCurrentVote(); // 마감된 투표 정보 새로고침
+            loadVoteHistory(); // 투표 기록도 새로고침
+        }, timeRemaining);
+        console.log(`투표 마감까지 ${timeRemaining / 1000}초 남음. 타이머 설정.`);
+    } else {
+        // 이미 마감 시간이 지났다면 바로 새로고침 (페이지 로드 시 마감된 투표일 경우)
+        console.log('이미 마감된 투표, 바로 새로고침');
+        loadCurrentVote();
+        loadVoteHistory();
+    }
 }
 
 // 투표자 목록 표시
