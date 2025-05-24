@@ -2,25 +2,6 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
-const webpush = require('web-push'); // web-push 라이브러리 추가
-
-// .env 파일 로드
-require('dotenv').config();
-
-// VAPID 키 설정 (환경 변수에서 로드)
-const publicVapidKey = process.env.WEB_PUSH_PUBLIC_KEY;
-const privateVapidKey = process.env.WEB_PUSH_PRIVATE_KEY;
-
-if (!publicVapidKey || !privateVapidKey) {
-    console.error('VAPID 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
-    process.exit(1);
-}
-
-webpush.setVapidDetails(
-    'mailto:' + process.env.EMAIL_USER,
-    publicVapidKey,
-    privateVapidKey
-);
 
 // Socket.IO 인스턴스를 가져오기 위한 함수
 let io;
@@ -68,7 +49,6 @@ router.get('/current', requireAuth, async (req, res) => {
         vote.menus = menus;
         res.json(vote);
     } catch (error) {
-        console.error('현재 투표 조회 오류:', error);
         res.status(500).json({ error: '투표 정보를 가져오는 중 오류가 발생했습니다.' });
     }
 });
@@ -113,7 +93,6 @@ router.get('/history', requireAuth, async (req, res) => {
 
         res.json(votes);
     } catch (error) {
-        console.error('투표 기록 조회 오류:', error);
         res.status(500).json({ error: '투표 기록을 가져오는 중 오류가 발생했습니다.' });
     }
 });
@@ -125,6 +104,23 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const { title, restaurantId, menuIds, endTime } = req.body;
+
+    // 입력값 검증
+    if (!title || typeof title !== 'string' || title.length > 100) {
+        return res.status(400).json({ error: '유효하지 않은 투표 제목입니다.' });
+    }
+
+    if (!restaurantId || isNaN(restaurantId)) {
+        return res.status(400).json({ error: '유효하지 않은 가게 ID입니다.' });
+    }
+
+    if (!Array.isArray(menuIds) || menuIds.length === 0) {
+        return res.status(400).json({ error: '유효하지 않은 메뉴 목록입니다.' });
+    }
+
+    if (!endTime || isNaN(new Date(endTime).getTime())) {
+        return res.status(400).json({ error: '유효하지 않은 마감 시간입니다.' });
+    }
 
     try {
         // 트랜잭션 시작
@@ -148,48 +144,10 @@ router.post('/', requireAuth, async (req, res) => {
 
         // 트랜잭션 커밋
         await pool.query('COMMIT');
-
-        // 실시간 업데이트를 위한 이벤트 발생
-        if (io) {
-            io.emit('voteCreated', { 
-                message: '새로운 투표가 생성되었습니다.',
-                voteId: voteId
-            });
-        }
-
-        // 모든 구독자에게 푸시 알림 전송
-        const [subscriptions] = await pool.query('SELECT endpoint, p256dh, auth FROM push_subscriptions');
-        
-        subscriptions.forEach(sub => {
-            const pushSubscription = {
-                endpoint: sub.endpoint,
-                keys: {
-                    p256dh: sub.p256dh,
-                    auth: sub.auth
-                }
-            };
-            const payload = JSON.stringify({
-                title: '새로운 투표 생성',
-                body: `${title} 투표가 시작되었습니다!`, // 투표 제목을 포함
-                url: '/' // 알림 클릭 시 이동할 URL (메인 페이지)
-            });
-
-            webpush.sendNotification(pushSubscription, payload).catch(error => {
-                console.error('Error sending push notification:', error);
-                // 만약 구독 정보가 더 이상 유효하지 않다면 (예: 브라우저에서 알림 거부), 해당 구독 정보를 DB에서 삭제할 수 있습니다.
-                // if (error.statusCode === 404 || error.statusCode === 410) {
-                //     console.log('Subscription is no longer valid:', pushSubscription);
-                //     // 여기서는 endpoint를 사용하여 삭제
-                //     pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [pushSubscription.endpoint]);
-                // }
-            });
-        });
-
         res.status(201).json({ message: '투표가 생성되었습니다.' });
     } catch (error) {
         // 트랜잭션 롤백
         await pool.query('ROLLBACK');
-        console.error('투표 생성 오류:', error);
         res.status(500).json({ error: '투표 생성 중 오류가 발생했습니다.' });
     }
 });
@@ -250,7 +208,6 @@ router.post('/:voteId/vote', requireAuth, async (req, res) => {
         res.json({ message: existingVoteItems.length > 0 ? '투표가 변경되었습니다.' : '투표가 완료되었습니다.' });
 
     } catch (error) {
-        console.error('투표 오류:', error);
         res.status(500).json({ error: '투표 중 오류가 발생했습니다.' });
     }
 });
@@ -287,7 +244,6 @@ router.post('/:voteId/end', requireAuth, async (req, res) => {
 
         res.json({ message: '투표가 마감되었습니다.' });
     } catch (error) {
-        console.error('투표 마감 오류:', error);
         res.status(500).json({ error: '투표 마감 중 오류가 발생했습니다.' });
     }
 });
@@ -309,68 +265,7 @@ router.get('/:voteId/voters', requireAuth, async (req, res) => {
 
         res.json(voters);
     } catch (error) {
-        console.error('투표자 목록 조회 오류:', error);
         res.status(500).json({ error: '투표자 목록을 가져오는 중 오류가 발생했습니다.' });
-    }
-});
-
-// 푸시 알림 구독 정보 저장
-router.post('/subscribe', requireAuth, async (req, res) => {
-    const subscription = req.body; // 클라이언트로부터 받은 구독 객체
-    const userId = req.user.id;
-
-    // 필요한 정보 추출
-    const endpoint = subscription.endpoint;
-    const p256dh = subscription.keys ? subscription.keys.p256dh : null;
-    const auth = subscription.keys ? subscription.keys.auth : null;
-
-    // 필수 정보 누락 확인
-    if (!endpoint || !p256dh || !auth) {
-        console.error('Invalid subscription object received:', subscription);
-        return res.status(400).json({ error: 'Invalid subscription data.' });
-    }
-
-    try {
-        // 기존 구독 정보가 있는지 확인하고 삭제 (동일한 사용자의 여러 기기/브라우저 구독 지원)
-        // endpoint로만 비교해도 충분하지만, user_id까지 함께 비교하여 혹시 모를 충돌 방지
-        await pool.query('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?', [userId, endpoint]);
-
-        // 새 구독 정보 저장
-        await pool.query('INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)', [
-            userId,
-            endpoint,
-            p256dh,
-            auth
-        ]);
-
-        res.status(201).json({ message: 'Subscription saved successfully.' });
-    } catch (error) {
-        console.error('Error saving subscription:', error);
-        res.status(500).json({ error: 'Failed to save subscription.' });
-    }
-});
-
-// 푸시 알림 구독 취소 정보 삭제
-router.post('/unsubscribe', requireAuth, async (req, res) => {
-    const subscription = req.body; // 클라이언트로부터 받은 구독 객체
-    const userId = req.user.id;
-    const endpoint = subscription.endpoint;
-
-    if (!endpoint) {
-         return res.status(400).json({ error: 'Endpoint missing for unsubscribe.' });
-    }
-
-    try {
-        // 구독 정보 삭제
-        await pool.query('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?', [
-            userId,
-            endpoint
-        ]);
-
-        res.json({ message: 'Subscription removed successfully.' });
-    } catch (error) {
-        console.error('Error removing subscription:', error);
-        res.status(500).json({ error: 'Failed to remove subscription.' });
     }
 });
 

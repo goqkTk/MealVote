@@ -60,6 +60,32 @@ router.post('/', requireAuth, async (req, res) => {
 
     const { name, description, menus } = req.body;
 
+    // 입력값 검증
+    if (!name || typeof name !== 'string' || name.length > 100) {
+        return res.status(400).json({ error: '유효하지 않은 가게 이름입니다.' });
+    }
+
+    if (description && (typeof description !== 'string' || description.length > 500)) {
+        return res.status(400).json({ error: '유효하지 않은 가게 설명입니다.' });
+    }
+
+    if (!Array.isArray(menus) || menus.length === 0) {
+        return res.status(400).json({ error: '유효하지 않은 메뉴 목록입니다.' });
+    }
+
+    // 메뉴 입력값 검증
+    for (const menu of menus) {
+        if (!menu.name || typeof menu.name !== 'string' || menu.name.length > 100) {
+            return res.status(400).json({ error: '유효하지 않은 메뉴 이름입니다.' });
+        }
+        if (menu.price && (typeof menu.price !== 'number' || menu.price < 0)) {
+            return res.status(400).json({ error: '유효하지 않은 메뉴 가격입니다.' });
+        }
+        if (menu.description && (typeof menu.description !== 'string' || menu.description.length > 500)) {
+            return res.status(400).json({ error: '유효하지 않은 메뉴 설명입니다.' });
+        }
+    }
+
     try {
         // 트랜잭션 시작
         await pool.query('START TRANSACTION');

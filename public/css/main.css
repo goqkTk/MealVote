@@ -1,0 +1,192 @@
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    user-select: none;
+}
+* {
+    user-select: none;
+}
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 0.3rem 1rem;
+    min-height: 40px;
+}
+.navbar-brand {
+    font-size: 1.4rem;
+    padding: 0;
+    line-height: 1;
+    font-weight: 600;
+}
+.navbar .btn {
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+.navbar .d-flex {
+    align-items: center;
+}
+.navbar .me-3 {
+    margin-right: 1.5rem !important;
+}
+.navbar .fa-user {
+    margin-right: 0.3rem !important;
+}
+.container {
+    max-width: 1200px;
+    margin: 1.5rem auto;
+    padding: 0 1rem;
+}
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.btn {
+    border: none;
+    padding: 0.8rem 2rem;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.btn-primary {
+    background: #f8f9fa;
+    color: #212529;
+}
+.btn-primary:hover {
+    background: #0d6efd;
+    color: white;
+}
+.btn-danger {
+    background: #f8f9fa;
+    color: #212529;
+}
+.btn-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+.btn-secondary {
+    background: #f8f9fa;
+    color: #212529;
+}
+.btn-secondary:hover {
+    background: #6c757d;
+    color: white;
+}
+.teacher-actions {
+    display: none;
+}
+.teacher .teacher-actions {
+    display: block;
+}
+.menu-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.menu-card:hover {
+    border-color: #0d6efd;
+    background-color: #f8f9fa;
+}
+.menu-card.selected {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+.menu-card .menu-price {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+textarea[name="description"] {
+    resize: none;
+}
+.modal-footer .btn {
+    width: 120px;
+}
+.input-group .btn-danger {
+    padding: 0.5rem 1rem;
+}
+.input-group .btn-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+.vote-date {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.vote-date:hover {
+    background-color: #f8f9fa;
+}
+.vote-date input[type="date"] {
+    display: none;
+}
+.vote-date.editing {
+    background-color: #f8f9fa;
+}
+.navbar .btn-danger.btn-sm {
+    padding: 0.3rem 0.8rem;
+}
+.voter-name {
+    list-style: none;
+    padding: 0.5rem 0;
+    margin: 0;
+    border-bottom: 1px solid #eee;
+}
+.voter-name:last-child {
+    border-bottom: none;
+}
+.modal-dialog {
+    display: flex;
+    align-items: center;
+    min-height: calc(100vh - 60px);
+}
+.modal-content {
+    margin: 0 auto;
+}
+.card-body .btn-sm {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+}
+#restaurantModal .btn-secondary.btn-sm {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+}
+#restaurantModal .input-group .btn-danger {
+    border: 1px solid #ced4da;
+    padding: 0.375rem 0.75rem; /* Bootstrap 기본 폼 컨트롤/버튼 패딩 */
+}
+#restaurantModal .input-group .btn-danger:hover {
+    border-color: #dc3545;
+}
+#voteHistory .badge.bg-primary {
+    cursor: pointer;
+}
+@media (max-width: 768px) {
+    .card-body .text-muted i.fa-calendar {
+        margin-right: 0.5rem;
+    }
+    .card-body .text-muted i.fa-clock {
+        margin-left: 0 !important;
+        margin-right: 0.5rem;
+    }
+    .card-body .text-muted {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .card-body .text-muted span {
+        margin-bottom: 0;
+    }
+}
+.card-body .text-muted span i {
+    margin-right: 0.5rem;
+} 

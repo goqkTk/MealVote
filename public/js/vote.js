@@ -165,14 +165,11 @@ function displayCurrentVote(vote) {
     if (timeRemaining > 0) {
         // 마감 시간까지 남은 시간 계산 후 해당 시간에 loadCurrentVote 실행
         voteTimer = setTimeout(() => {
-            console.log('투표 마감 시간 도달, 투표 정보 새로고침');
             loadCurrentVote(); // 마감된 투표 정보 새로고침
             loadVoteHistory(); // 투표 기록도 새로고침
         }, timeRemaining);
-        console.log(`투표 마감까지 ${timeRemaining / 1000}초 남음. 타이머 설정.`);
     } else {
         // 이미 마감 시간이 지났다면 바로 새로고침 (페이지 로드 시 마감된 투표일 경우)
-        console.log('이미 마감된 투표, 바로 새로고침');
         loadCurrentVote();
         loadVoteHistory();
     }
@@ -830,52 +827,35 @@ const socket = io({
 
 // 실시간 이벤트 리스너
 socket.on('welcome', (data) => {
-    // showNotification(data.message);
 });
 
 socket.on('voteCreated', (data) => {
     loadCurrentVote();
-    // showNotification(data.message);
 });
 
 socket.on('voteUpdated', (data) => {
     loadCurrentVote();
     loadVoteHistory();
-    // showNotification(data.message);
 });
 
 // 연결 상태 모니터링
 socket.on('connect', () => {
-    // showNotification('실시간 업데이트가 연결되었습니다.');
 });
 
 socket.on('disconnect', () => {
-    // showNotification('실시간 업데이트 연결이 끊어졌습니다. 재연결을 시도합니다...');
 });
 
 socket.on('connect_error', (error) => {
-    // showNotification('실시간 업데이트 연결 오류가 발생했습니다.');
 });
 
 socket.on('reconnect', (attemptNumber) => {
-    // showNotification('실시간 업데이트가 재연결되었습니다.');
 });
 
 socket.on('reconnect_error', (error) => {
-    // showNotification('실시간 업데이트 연결 오류가 발생했습니다.');
 });
-
-// 알림 표시 함수
-function showNotification(message) {
-    // 이 함수는 더 이상 사용되지 않습니다.
-    // 필요시 다시 활성화하거나 다른 알림 시스템을 사용하세요.
-    // console.log('Notification:', message);
-}
 
 // Socket.IO 이벤트 리스너에 투표 마감 이벤트 추가
 socket.on('voteEnded', (data) => {
-    console.log('투표가 마감되었습니다:', data);
     loadCurrentVote();
     loadVoteHistory();
-    // showNotification(data.message);
 }); 

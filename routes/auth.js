@@ -6,7 +6,8 @@ const crypto = require('crypto');
 const transporter = require('../config/email');
 
 // URL 암호화를 위한 키 (32바이트)
-const ENCRYPTION_KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
+const salt = crypto.randomBytes(16);
+const ENCRYPTION_KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, salt, 32);
 const IV_LENGTH = 16;
 
 // JWT 시크릿 키
@@ -62,8 +63,8 @@ router.post('/register', async (req, res) => {
 
         // 인증 토큰 생성
         const verificationToken = crypto.randomBytes(32).toString('hex');
-        // 토큰 만료 시간 설정 (30분)
-        const tokenExpires = new Date(Date.now() + 30 * 60 * 1000);
+        // 토큰 만료 시간 설정 (15분)
+        const tokenExpires = new Date(Date.now() + 15 * 60 * 1000);
 
         // 사용자 정보 저장
         const [result] = await pool.query(

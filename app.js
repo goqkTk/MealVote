@@ -3,16 +3,19 @@ const session = require('express-session');
 const path = require('path');
 require('dotenv').config();
 
+// MySQL 세션 스토어 추가
+const MySQLStore = require('express-mysql-session')(session);
+const pool = require('./config/database');
+
 const { router: authRouter, encryptUrl, decryptUrl } = require('./routes/auth');
 const { router: voteRouter, setSocketIO } = require('./routes/vote');
 const { requireAuth } = require('./middleware/auth');
-const pool = require('./config/database');
 
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
     cors: {
-        origin: "*",
+        origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : 'http://localhost:3000',
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -23,6 +26,14 @@ const io = require('socket.io')(http, {
 // Socket.IO 인스턴스를 라우터에 전달
 setSocketIO(io);
 
+// MySQL 세션 스토어 설정
+const sessionStore = new MySQLStore({
+    expiration: 24 * 60 * 60 * 1000, // 세션 만료 시간 (1일)
+    endConnectionOnClose: true,
+    clearExpired: true,
+    checkExpirationInterval: 60 * 60 * 1000 // 만료된 세션 정리 주기 (1시간)
+}, pool);
+
 // 미들웨어 설정
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -31,19 +42,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 세션 설정
 app.use(session({
     secret: process.env.SESSION_SECRET,
+    store: sessionStore, // 데이터베이스 스토어 사용
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production'
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24시간
     }
 }));
 
 // 뷰 엔진 설정
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-
-// VAPID 공개 키 로드
-const publicVapidKey = process.env.WEB_PUSH_PUBLIC_KEY;
 
 // 라우트 설정
 app.use('/api/auth', authRouter);
@@ -86,23 +98,19 @@ app.get('/login', (req, res) => {
 
 // 메인 페이지 (인증 필요)
 app.get('/', requireAuth, (req, res) => {
-    res.render('index', { publicVapidKey: publicVapidKey });
+    res.render('index');
 });
 
 // Socket.IO 연결 처리
 io.on('connection', (socket) => {
-    // console.log('새로운 클라이언트가 연결되었습니다. ID:', socket.id);
-
     // 연결된 클라이언트에게 환영 메시지 전송
     socket.emit('welcome', { message: '서버에 연결되었습니다.' });
 
     socket.on('disconnect', () => {
-        // console.log('클라이언트 연결이 끊어졌습니다. ID:', socket.id);
     });
 
     // 에러 처리
     socket.on('error', (error) => {
-        console.error('Socket.IO 에러:', error);
     });
 });
 
@@ -128,8 +136,14 @@ app.post('/api/votes/:voteId/vote', requireAuth, async (req, res) => {
     }
 });
 
+// 전역 에러 핸들러
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+});
+
 // 서버 시작
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 const HOST = '0.0.0.0';
 http.listen(PORT, HOST, () => {
     console.log(`서버가 http://${HOST}:${PORT} 에서 실행 중입니다.`);
