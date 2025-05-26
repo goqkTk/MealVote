@@ -23,7 +23,7 @@
                     <i class="fas fa-user"></i>
                     <span id="userName"></span>
                 </span>
-                <button id="logoutButton" class="btn btn-outline-secondary btn-sm">로그아웃</button>
+                <button id="logoutButton" class="btn btn-outline-secondary btn-sm" onclick="logout()">로그아웃</button>
             </div>
         </div>
     </nav>
@@ -247,9 +247,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- 푸시 알림 상태 메시지 표시 -->
-                    <p id="pushStatusMessage" class="text-muted small"></p>
-                    <!-- 여기에 다른 사용자 설정 내용을 추가할 수 있습니다. -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch d-flex align-items-center">
+                            <input class="form-check-input" type="checkbox" id="notificationToggle">
+                            <label class="form-check-label ms-2" for="notificationToggle">푸시 알림</label>
+                            <div id="notificationLoading" class="ms-2" style="display: none;">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">로딩중...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

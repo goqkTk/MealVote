@@ -209,10 +209,74 @@ async function showVoters(voteId, menuId, menuName, event) {
     }
 }
 
+// 알림 설정 상태 확인 및 토글 버튼 초기화
+async function initializeNotificationSettings() {
+    const toggle = document.getElementById('notificationToggle');
+    const loadingSpinner = document.getElementById('notificationLoading');
+    if (!toggle) return;
+
+    try {
+        // 현재 구독 상태 확인
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        // 토글 버튼 상태 설정
+        toggle.checked = !!subscription;
+        
+        // 토글 버튼 이벤트 리스너
+        toggle.addEventListener('change', async (e) => {
+            // 토글 버튼과 로딩 스피너 상태 업데이트
+            toggle.disabled = true;
+            loadingSpinner.style.display = 'block';
+            
+            try {
+                if (e.target.checked) {
+                    await registerPush();
+                } else {
+                    await unregisterPush();
+                }
+            } catch (error) {
+                console.error('알림 설정 변경 중 오류 발생:', error);
+                // 오류 발생 시 토글 상태를 원래대로 되돌림
+                toggle.checked = !toggle.checked;
+            } finally {
+                // 작업 완료 후 토글 버튼과 로딩 스피너 상태 복원
+                toggle.disabled = false;
+                loadingSpinner.style.display = 'none';
+            }
+        });
+    } catch (error) {
+        console.error('알림 설정 초기화 중 오류 발생:', error);
+    }
+}
+
+// 푸시 알림 구독 해제
+async function unregisterPush() {
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            await subscription.unsubscribe();
+            await fetch('/api/votes/unsubscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ subscription })
+            });
+        }
+    } catch (error) {
+        console.error('푸시 알림 구독 해제 중 오류 발생:', error);
+        throw error;
+    }
+}
+
 // 설정 모달 표시
 function showSettingsModal() {
     const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
     settingsModal.show();
+    initializeNotificationSettings();
 }
 
 // 투표 기록 로드
@@ -887,8 +951,7 @@ async function registerPush() {
 
     if (existingSubscription) {
       console.log('Existing subscription found.');
-      // 테스트를 위해 기존 구독이 있어도 서버에 다시 보냅니다.
-      await sendSubscriptionToServer(existingSubscription); // <-- 이 부분을 무조건 실행하도록 합니다.
+      await sendSubscriptionToServer(existingSubscription);
       console.log('Existing subscription resent to server.');
     } else {
       console.log('No existing subscription, requesting new one.');
@@ -902,18 +965,36 @@ async function registerPush() {
       const { vapidPublicKey } = await vapidPublicKeyResponse.json();
       console.log('Fetched VAPID Public Key:', vapidPublicKey);
 
-      // 푸시 구독 요청
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true, // 사용자가 볼 수 있는 알림만 구독
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey), // 가져온 VAPID 공개 키 사용
-      });
+      try {
+        // iOS Safari를 위한 특별한 처리
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-      console.log('New push subscription:', subscription);
+        if (isIOS && isSafari) {
+          // iOS Safari에서는 알림 권한을 먼저 요청
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.log('Notification permission denied');
+            return;
+          }
+        }
 
-      // 서버에 구독 정보 전송
-      await sendSubscriptionToServer(subscription);
+        // 푸시 구독 요청
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        });
+
+        console.log('New push subscription:', subscription);
+        await sendSubscriptionToServer(subscription);
+      } catch (error) {
+        console.error('Error subscribing to push:', error);
+        // iOS에서 발생할 수 있는 오류 처리
+        if (error.name === 'NotAllowedError') {
+          alert('푸시 알림을 받으려면 알림 권한을 허용해주세요.');
+        }
+      }
     }
-
   } catch (error) {
     console.error('Service Worker registration or push subscription failed:', error);
   }
@@ -959,15 +1040,4 @@ async function sendSubscriptionToServer(subscription) {
 
 // 페이지 로드 시 Service Worker 등록 및 푸시 구독 요청 실행
 // 필요한 경우 특정 사용자 액션 (버튼 클릭 등)에 따라 실행하도록 변경 가능
-registerPush();
-
-// 사용자에게 푸시 알림 상태를 표시하는 함수 (구현 필요)
-function displayPushNotificationStatus(message) {
-    console.log('Push Status:', message);
-    // 실제 웹 페이지에 메시지를 표시하는 UI 로직을 여기에 추가하세요.
-    // 예: 특정 HTML 요소에 메시지를 업데이트
-    const statusElement = document.getElementById('pushStatusMessage'); // 예시 ID
-    if (statusElement) {
-        statusElement.textContent = message;
-    }
-} 
+registerPush(); 

@@ -132,10 +132,13 @@ if (document.getElementById('registerForm')) {
 }
 
 // 로그아웃
-async function logout() {
+window.logout = async function() {
     try {
         const response = await fetch('/api/auth/logout', {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
         
         if (response.ok) {
@@ -144,6 +147,7 @@ async function logout() {
             alert('로그아웃 중 오류가 발생했습니다.');
         }
     } catch (error) {
+        console.error('로그아웃 오류:', error);
         alert('로그아웃 중 오류가 발생했습니다.');
     }
 }

@@ -66,6 +66,24 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     }
 });
 
+// 푸시 알림 구독 해제 엔드포인트
+router.post('/unsubscribe', requireAuth, async (req, res) => {
+    try {
+        const { subscription } = req.body;
+        
+        // 사용자의 구독 정보 삭제
+        await pool.query(
+            'UPDATE users SET push_subscription = NULL WHERE id = ?',
+            [req.user.id]
+        );
+        
+        res.status(200).json({ message: 'Successfully unsubscribed' });
+    } catch (error) {
+        console.error('Error unsubscribing from push notifications:', error);
+        res.status(500).json({ error: 'Failed to unsubscribe from push notifications' });
+    }
+});
+
 // 현재 진행 중인 투표 조회
 router.get('/current', requireAuth, async (req, res) => {
     try {
