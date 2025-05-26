@@ -2,12 +2,69 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
+const webpush = require('web-push'); // web-push 라이브러리 추가
 
 // Socket.IO 인스턴스를 가져오기 위한 함수
 let io;
 function setSocketIO(socketIO) {
     io = socketIO;
 }
+
+// VAPID 키 설정
+const vapidPublicKey = process.env.VAPID_PUBLIC;
+const vapidPrivateKey = process.env.VAPID_PRIVATE;
+
+if (!vapidPublicKey || !vapidPrivateKey) {
+  console.error('VAPID public and private keys are not set in environment variables!');
+  console.error('Push notifications will not work.');
+} else {
+  webpush.setVapidDetails(
+    'mailto:' + process.env.EMAIL_USER,
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+}
+
+// VAPID 공개 키 제공 엔드포인트
+router.get('/vapid-public-key', (req, res) => {
+  const vapidPublicKey = process.env.VAPID_PUBLIC;
+  if (!vapidPublicKey) {
+    return res.status(500).json({ error: 'VAPID public key not configured.' });
+  }
+  res.status(200).json({ vapidPublicKey });
+});
+
+// 푸시 알림 구독 정보 저장 엔드포인트
+router.post('/subscribe', requireAuth, async (req, res) => {
+    const userId = req.user.id;
+    const subscription = req.body; // 클라이언트에서 전송한 구독 객체
+
+    // TODO: 구독 정보 유효성 검사 필요 (subscription 객체의 구조 확인 등)
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return res.status(400).json({ error: 'Invalid subscription data.' });
+    }
+
+    try {
+        // 데이터베이스에 구독 정보 저장 또는 업데이트
+        // users 테이블에 push_subscription 컬럼이 있다고 가정
+        // 컬럼 타입은 TEXT 또는 JSON 타입을 지원하는 경우 JSON, TEXT만 지원하면 JSON.stringify 사용
+        const [result] = await pool.query(
+            'UPDATE users SET push_subscription = ? WHERE id = ?',
+            [JSON.stringify(subscription), userId] // 구독 객체를 JSON 문자열로 저장
+        );
+
+        if (result.affectedRows > 0) {
+            res.status(200).json({ message: 'Subscription saved successfully.' });
+        } else {
+            // 사용자가 없는 경우는 requireAuth에서 처리되므로 여기에 올 일은 거의 없습니다.
+             res.status(404).json({ error: 'User not found.' });
+        }
+
+    } catch (error) {
+        console.error('Error saving subscription:', error);
+        res.status(500).json({ error: 'Failed to save subscription.' });
+    }
+});
 
 // 현재 진행 중인 투표 조회
 router.get('/current', requireAuth, async (req, res) => {
@@ -145,9 +202,63 @@ router.post('/', requireAuth, async (req, res) => {
         // 트랜잭션 커밋
         await pool.query('COMMIT');
         res.status(201).json({ message: '투표가 생성되었습니다.' });
+
+        // --- 푸시 알림 전송 로직 추가 --- START
+        console.log('새로운 투표 생성됨. 푸시 알림 전송 시도...');
+        
+        // 푸시 알림을 보낼 대상 사용자들의 구독 정보 가져오기
+        // 여기서는 모든 사용자에게 보낸다고 가정하고 push_subscription이 있는 모든 사용자를 조회합니다.
+        const [subscribers] = await pool.query(
+            'SELECT push_subscription FROM users WHERE push_subscription IS NOT NULL'
+        );
+
+        const notificationPayload = JSON.stringify({
+            title: '새로운 투표가 시작되었습니다!',
+            body: `${title} 투표에 참여하세요!`, // 투표 제목 사용
+            icon: '/images/smcicon.png', // 알림 아이콘
+            data: { // 클릭 시 열릴 URL 등 추가 데이터
+                url: '/' // 투표 페이지 URL
+            }
+        });
+
+        // 각 구독자에게 알림 전송
+        subscribers.forEach(async (subscriber) => {
+            try {
+                const subscription = JSON.parse(subscriber.push_subscription);
+                const sendResult = await webpush.sendNotification(subscription, notificationPayload);
+                console.log('Push notification sent to subscriber.', sendResult);
+            } catch (error) {
+                console.error('Failed to send push notification to subscriber:', error); // 에러 객체 자체를 먼저 로그
+                
+                // 에러 객체의 모든 속성을 JSON 형태로 출력
+                console.error('Detailed Push Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+
+                // 유효하지 않거나 만료된 구독 정보는 데이터베이스에서 삭제하는 로직 추가
+                if (error.statusCode === 410) { // Gone - 구독이 만료됨
+                    console.log('Subscription expired, removing from database.');
+                     try {
+                         // TODO: 특정 사용자의 구독 정보만 삭제하도록 쿼리 수정 필요
+                         // 현재 쿼리는 해당 구독 정보 문자열과 일치하는 모든 레코드를 삭제합니다.
+                         await pool.query('UPDATE users SET push_subscription = NULL WHERE push_subscription = ?', [subscriber.push_subscription]);
+                         console.log('Expired subscription removed from database.');
+                     } catch (dbError) {
+                         console.error('Error removing expired subscription from database:', dbError);
+                     }
+                }
+                // statusCode 410이 아닌 경우에도 error.body가 있다면 출력 (기존 else 블록 유지)
+                 else if (error.body) {
+                     console.error('Push notification sending error details:', error.body);
+                 } else {
+                     console.warn('Push notification failed, but no detailed body was provided.');
+                 }
+            }
+        });
+        // --- 푸시 알림 전송 로직 추가 --- END
+
     } catch (error) {
         // 트랜잭션 롤백
         await pool.query('ROLLBACK');
+        console.error('투표 생성 중 오류가 발생했습니다:', error);
         res.status(500).json({ error: '투표 생성 중 오류가 발생했습니다.' });
     }
 });

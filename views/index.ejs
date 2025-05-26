@@ -12,6 +12,7 @@
     <link href="/css/main.css" rel="stylesheet">
     <!-- Socket.IO 클라이언트 -->
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="manifest" href="/manifest.json">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light">
@@ -246,6 +247,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- 푸시 알림 상태 메시지 표시 -->
+                    <p id="pushStatusMessage" class="text-muted small"></p>
                     <!-- 여기에 다른 사용자 설정 내용을 추가할 수 있습니다. -->
                 </div>
             </div>

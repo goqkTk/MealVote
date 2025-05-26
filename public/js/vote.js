@@ -858,4 +858,115 @@ socket.on('reconnect_error', (error) => {
 socket.on('voteEnded', (data) => {
     loadCurrentVote();
     loadVoteHistory();
-}); 
+});
+
+// Service Worker 등록 및 푸시 구독 요청
+async function registerPush() {
+  console.log('Attempting to register service worker and subscribe to push.');
+
+  // Service Worker 지원 확인
+  if (!('serviceWorker' in navigator)) {
+    console.log('Service workers are not supported by this browser.');
+    return;
+  }
+
+  // Push Manager 지원 확인
+  if (!('PushManager' in window)) {
+    console.log('Push notifications are not supported by this browser.');
+    return;
+  }
+
+  try {
+    // Service Worker 등록
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('Service Worker registered:', registration);
+
+    // 현재 푸시 구독 상태 확인
+    const existingSubscription = await registration.pushManager.getSubscription();
+
+    if (existingSubscription) {
+      console.log('Existing subscription found.');
+      // 테스트를 위해 기존 구독이 있어도 서버에 다시 보냅니다.
+      await sendSubscriptionToServer(existingSubscription); // <-- 이 부분을 무조건 실행하도록 합니다.
+      console.log('Existing subscription resent to server.');
+    } else {
+      console.log('No existing subscription, requesting new one.');
+
+      // 서버에서 VAPID 공개 키 가져오기
+      const vapidPublicKeyResponse = await fetch('/api/votes/vapid-public-key');
+      if (!vapidPublicKeyResponse.ok) {
+          console.error('Failed to fetch VAPID public key.');
+          return;
+      }
+      const { vapidPublicKey } = await vapidPublicKeyResponse.json();
+      console.log('Fetched VAPID Public Key:', vapidPublicKey);
+
+      // 푸시 구독 요청
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true, // 사용자가 볼 수 있는 알림만 구독
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey), // 가져온 VAPID 공개 키 사용
+      });
+
+      console.log('New push subscription:', subscription);
+
+      // 서버에 구독 정보 전송
+      await sendSubscriptionToServer(subscription);
+    }
+
+  } catch (error) {
+    console.error('Service Worker registration or push subscription failed:', error);
+  }
+}
+
+// base64 문자열을 Uint8Array로 변환하는 함수
+// VAPID 공개 키를 구독 요청 시 사용하기 위해 필요
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// 서버에 푸시 구독 정보 전송하는 함수 (구현 필요)
+async function sendSubscriptionToServer(subscription) {
+  try {
+    const response = await fetch('/api/votes/subscribe', { // 구독 정보를 받을 서버 엔드포인트 경로 수정
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      console.log('Subscription sent to server successfully.');
+    } else {
+      console.error('Failed to send subscription to server.');
+    }
+  } catch (error) {
+    console.error('Error sending subscription to server:', error);
+  }
+}
+
+// 페이지 로드 시 Service Worker 등록 및 푸시 구독 요청 실행
+// 필요한 경우 특정 사용자 액션 (버튼 클릭 등)에 따라 실행하도록 변경 가능
+registerPush();
+
+// 사용자에게 푸시 알림 상태를 표시하는 함수 (구현 필요)
+function displayPushNotificationStatus(message) {
+    console.log('Push Status:', message);
+    // 실제 웹 페이지에 메시지를 표시하는 UI 로직을 여기에 추가하세요.
+    // 예: 특정 HTML 요소에 메시지를 업데이트
+    const statusElement = document.getElementById('pushStatusMessage'); // 예시 ID
+    if (statusElement) {
+        statusElement.textContent = message;
+    }
+} 
