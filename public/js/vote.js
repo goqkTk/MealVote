@@ -631,6 +631,7 @@ async function submitVote() {
             bootstrap.Modal.getInstance(document.getElementById('createVoteModal')).hide();
             form.reset();
             await loadCurrentVote();
+            await loadVoteHistory();  // 투표 기록도 함께 업데이트
         } else {
             const data = await response.json();
             alert(data.error);
@@ -704,6 +705,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (userType === 'teacher') {
         loadRestaurants();
     }
+
+    // Socket.IO 이벤트 리스너 등록
+    socket.on('voteCreated', (data) => {
+        console.log('새로운 투표가 생성되었습니다:', data);
+        loadCurrentVote();
+        loadVoteHistory();
+    });
+
+    socket.on('voteUpdated', (data) => {
+        console.log('투표가 업데이트되었습니다:', data);
+        loadCurrentVote();
+        loadVoteHistory();
+    });
+
+    socket.on('voteEnded', (data) => {
+        console.log('투표가 마감되었습니다:', data);
+        loadCurrentVote();
+        loadVoteHistory();
+    });
 });
 
 // 사용자 타입 확인
@@ -825,19 +845,6 @@ const socket = io({
     reconnectionDelay: 1000
 });
 
-// 실시간 이벤트 리스너
-socket.on('welcome', (data) => {
-});
-
-socket.on('voteCreated', (data) => {
-    loadCurrentVote();
-});
-
-socket.on('voteUpdated', (data) => {
-    loadCurrentVote();
-    loadVoteHistory();
-});
-
 // 연결 상태 모니터링
 socket.on('connect', () => {
 });
@@ -852,12 +859,6 @@ socket.on('reconnect', (attemptNumber) => {
 });
 
 socket.on('reconnect_error', (error) => {
-});
-
-// Socket.IO 이벤트 리스너에 투표 마감 이벤트 추가
-socket.on('voteEnded', (data) => {
-    loadCurrentVote();
-    loadVoteHistory();
 });
 
 // Service Worker 등록 및 푸시 구독 요청

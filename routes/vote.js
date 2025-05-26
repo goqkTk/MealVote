@@ -201,6 +201,15 @@ router.post('/', requireAuth, async (req, res) => {
 
         // 트랜잭션 커밋
         await pool.query('COMMIT');
+
+        // 실시간 업데이트를 위한 이벤트 발생
+        if (io) {
+            io.emit('voteCreated', { 
+                voteId: voteId,
+                message: '새로운 투표가 생성되었습니다.'
+            });
+        }
+
         res.status(201).json({ message: '투표가 생성되었습니다.' });
 
         // --- 푸시 알림 전송 로직 추가 --- START
