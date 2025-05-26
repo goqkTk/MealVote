@@ -165,4 +165,77 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (success === 'verified') {
         showAuthSuccess('이메일 인증이 완료되었습니다. 로그인해주세요.');
     }
-}); 
+});
+
+// 비밀번호 변경 폼 토글 기능
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleButton = document.getElementById('togglePasswordChangeForm');
+    const formContainer = document.getElementById('passwordChangeFormContainer');
+    
+    if (toggleButton && formContainer) {
+        toggleButton.addEventListener('click', function() {
+            formContainer.classList.toggle('d-none');
+            // 폼이 나타날 때 현재 비밀번호 필드에 포커스
+            if (!formContainer.classList.contains('d-none')) {
+                document.getElementById('currentPassword').focus();
+            }
+        });
+    }
+});
+
+// 비밀번호 변경 폼 제출
+if (document.getElementById('changePasswordForm')) {
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const errorElement = document.getElementById('passwordChangeError');
+        const successElement = document.getElementById('passwordChangeSuccess');
+
+        // 에러 메시지 초기화
+        errorElement.classList.add('d-none');
+        errorElement.textContent = '';
+        successElement.classList.add('d-none');
+        successElement.textContent = '';
+
+        // 새 비밀번호 확인
+        if (newPassword !== confirmPassword) {
+            errorElement.textContent = '새 비밀번호가 일치하지 않습니다.';
+            errorElement.classList.remove('d-none');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                successElement.textContent = data.message;
+                successElement.classList.remove('d-none');
+                // 폼 초기화
+                e.target.reset();
+            } else {
+                // HTTP 상태 코드가 400이면 유효성 검사 오류이므로 콘솔에 로깅하지 않음
+                if (response.status !== 400) {
+                    console.error('비밀번호 변경 중 오류:', response.status, data);
+                }
+                errorElement.textContent = data.error || '비밀번호 변경 중 오류가 발생했습니다.';
+                errorElement.classList.remove('d-none');
+            }
+        } catch (error) {
+            // 네트워크 오류 등 예상치 못한 오류
+            console.error('비밀번호 변경 중 네트워크 오류:', error);
+            errorElement.textContent = '비밀번호 변경 중 네트워크 오류가 발생했습니다.';
+            errorElement.classList.remove('d-none');
+        }
+    });
+} 

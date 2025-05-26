@@ -205,8 +205,45 @@ router.post('/logout', (req, res) => {
         if (err) {
             return res.status(500).json({ error: '로그아웃 중 오류가 발생했습니다.' });
         }
-        res.json({ message: '로그아웃되었습니다.' });
+        res.status(200).json({ message: '로그아웃되었습니다.' });
     });
+});
+
+// 비밀번호 변경
+router.post('/change-password', async (req, res) => {
+    if (!req.session || !req.session.user) {
+        return res.status(401).json({ error: '로그인이 필요합니다.' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.session.user.id;
+
+    try {
+        // 현재 사용자 정보 조회
+        const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+        const user = users[0];
+
+        if (!user) {
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        }
+
+        // 현재 비밀번호 확인
+        const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!passwordMatch) {
+            return res.status(400).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
+        }
+
+        // 새 비밀번호 암호화
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // 비밀번호 업데이트
+        await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
+
+        res.status(200).json({ message: '비밀번호가 성공적으로 변경되었습니다.' });
+    } catch (error) {
+        console.error('비밀번호 변경 오류:', error);
+        res.status(500).json({ error: '비밀번호 변경 중 오류가 발생했습니다.' });
+    }
 });
 
 // 현재 로그인한 사용자 정보 조회

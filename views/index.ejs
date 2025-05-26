@@ -247,17 +247,75 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <div class="form-check form-switch d-flex align-items-center">
-                            <input class="form-check-input" type="checkbox" id="notificationToggle">
-                            <label class="form-check-label ms-2" for="notificationToggle">푸시 알림</label>
-                            <div id="notificationLoading" class="ms-2" style="display: none;">
+                    <!-- 알림 설정 섹션 -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                        <div>
+                            <label class="form-check-label" for="notificationToggle">푸시 알림</label>
+                            <small class="text-muted d-block">투표 생성 시 알림 수신 설정</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div id="notificationLoading" class="me-2" style="display: none;">
                                 <div class="spinner-border spinner-border-sm text-primary" role="status">
                                     <span class="visually-hidden">로딩중...</span>
                                 </div>
                             </div>
+                             <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="notificationToggle">
+                            </div>
                         </div>
                     </div>
+
+                    <!-- 계정 설정 섹션 -->
+                    <div class="mb-0 pt-2">
+                         <h6 class="mb-3">계정</h6>
+                        
+                         <!-- 비밀번호 변경 항목 -->
+                         <div class="d-flex justify-content-between align-items-center mb-3">
+                             <div>
+                                 <label class="form-label mb-0">비밀번호 변경</label>
+                                 <small class="text-muted d-block">계정 비밀번호를 변경합니다.</small>
+                             </div>
+                             <button class="btn btn-outline-secondary btn-sm" type="button" id="togglePasswordChangeForm">
+                                 변경
+                             </button>
+                         </div>
+                        
+                        <!-- 비밀번호 변경 폼 (초기에 숨김) -->
+                        <div id="passwordChangeFormContainer" class="d-none card card-body bg-light mb-3">
+                            <form id="changePasswordForm">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label visually-hidden">현재 비밀번호</label>
+                                    <input type="password" class="form-control form-control-sm" id="currentPassword" placeholder="현재 비밀번호" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label visually-hidden">새 비밀번호</label>
+                                    <input type="password" class="form-control form-control-sm" id="newPassword" placeholder="새 비밀번호" required>
+                                </div>
+                                <div class="mb-3">
+                                     <label for="confirmPassword" class="form-label visually-hidden">새 비밀번호 확인</label>
+                                    <input type="password" class="form-control form-control-sm" id="confirmPassword" placeholder="새 비밀번호 확인" required>
+                                </div>
+                                <div id="passwordChangeError" class="alert alert-danger alert-sm d-none" role="alert"></div>
+                                <div id="passwordChangeSuccess" class="alert alert-success alert-sm d-none" role="alert"></div>
+                                <button type="submit" class="btn btn-primary d-block mx-auto btn-sm">
+                                    변경하기
+                                </button>
+                            </form>
+                        </div>
+
+                         <!-- 프로필 이미지, 이름, 이메일 변경 등의 항목이 여기에 추가될 수 있습니다. -->
+                         <!-- 예시: 프로필 이미지 변경 -->
+                         <!--
+                         <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div>
+                                  <label class="form-label mb-0">프로필 이미지</label>
+                                  <small class="text-muted d-block">프로필 이미지를 변경합니다.</small>
+                              </div>
+                             <button class="btn btn-outline-secondary btn-sm">변경</button>
+                         </div>
+                         -->
+                    </div>
+
                 </div>
             </div>
         </div>
