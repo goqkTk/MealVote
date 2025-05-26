@@ -55,10 +55,32 @@ async function getCurrentVote() {
 // 투표 기록 가져오기
 async function getVoteHistory() {
     try {
-        const response = await fetch('/api/votes/history');
+        console.log('Fetching vote history with user settings...');
+        // 사용자 설정에서 투표 기록 표시 개수 가져오기
+        const userSettingsResponse = await fetch('/api/auth/me');
+        let limit = 2; // 기본값
+        
+        if (userSettingsResponse.ok) {
+            const userData = await userSettingsResponse.json();
+            console.log('User data fetched:', userData);
+            if (userData.user && userData.user.voteHistoryCount !== undefined) {
+                limit = userData.user.voteHistoryCount;
+                console.log('Using vote history limit from user settings:', limit);
+            } else {
+                 console.log('voteHistoryCount not found in user data, using default:', limit);
+            }
+        } else {
+            console.error('Failed to fetch user settings for vote history limit:', userSettingsResponse.status);
+        }
+
+        console.log('Final limit for fetching vote history:', limit);
+        const response = await fetch(`/api/votes/history?limit=${limit}`);
         if (response.ok) {
             const votes = await response.json();
-            displayVoteHistory(votes);
+            console.log('Vote history fetched:', votes.length, 'items');
+            displayVoteHistory(votes, limit);
+        } else {
+             console.error('Failed to fetch vote history:', response.status);
         }
     } catch (error) {
         console.error('투표 기록 가져오기 오류:', error);
@@ -165,13 +187,13 @@ function displayCurrentVote(vote) {
     if (timeRemaining > 0) {
         // 마감 시간까지 남은 시간 계산 후 해당 시간에 loadCurrentVote 실행
         voteTimer = setTimeout(() => {
-            loadCurrentVote(); // 마감된 투표 정보 새로고침
-            loadVoteHistory(); // 투표 기록도 새로고침
+            loadCurrentVote();
+            getVoteHistory();
         }, timeRemaining);
     } else {
         // 이미 마감 시간이 지났다면 바로 새로고침 (페이지 로드 시 마감된 투표일 경우)
         loadCurrentVote();
-        loadVoteHistory();
+        getVoteHistory();
     }
 }
 
@@ -279,23 +301,16 @@ function showSettingsModal() {
     initializeNotificationSettings();
 }
 
-// 투표 기록 로드
-async function loadVoteHistory() {
-    try {
-        // 초기에는 최대 2개만 표시
-        const response = await fetch('/api/votes/history?limit=2');
-        if (response.ok) {
-            const votes = await response.json();
-            displayVoteHistory(votes);
-        }
-    } catch (error) {
-        console.error('투표 기록 로드 오류:', error);
-    }
-}
-
 // 투표 기록 표시
-function displayVoteHistory(votes) {
+function displayVoteHistory(votes, limit) {
     const historyDiv = document.getElementById('voteHistory');
+
+    // 투표 기록 표시 개수가 0인 경우 별도 메시지 표시
+    if (limit === 0) {
+        historyDiv.innerHTML = '<p class="text-muted text-nowrap">투표 기록 표시 개수가 0으로 설정되어 있습니다</p>';
+        return;
+    }
+
     if (votes.length === 0) {
         historyDiv.innerHTML = '<p class="text-muted">투표 기록이 없습니다.</p>';
         return;
@@ -695,7 +710,7 @@ async function submitVote() {
             bootstrap.Modal.getInstance(document.getElementById('createVoteModal')).hide();
             form.reset();
             await loadCurrentVote();
-            await loadVoteHistory();  // 투표 기록도 함께 업데이트
+            await getVoteHistory();  // 투표 기록도 함께 업데이트
         } else {
             const data = await response.json();
             alert(data.error);
@@ -719,7 +734,7 @@ async function vote(voteId, menuId) {
 
         if (response.ok) {
             loadCurrentVote();
-            loadVoteHistory();
+            getVoteHistory();
         } else {
             const data = await response.json();
             alert(data.error);
@@ -743,7 +758,7 @@ async function endVote(voteId) {
 
         if (response.ok) {
             loadCurrentVote();
-            loadVoteHistory();
+            getVoteHistory();
         } else {
             const data = await response.json();
             alert(data.error);
@@ -763,7 +778,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCurrentVote();
     
     // 투표 기록 로드
-    loadVoteHistory();
+    getVoteHistory();
     
     // 선생님인 경우 가게 목록 로드
     if (userType === 'teacher') {
@@ -774,19 +789,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     socket.on('voteCreated', (data) => {
         console.log('새로운 투표가 생성되었습니다:', data);
         loadCurrentVote();
-        loadVoteHistory();
+        getVoteHistory();
     });
 
     socket.on('voteUpdated', (data) => {
         console.log('투표가 업데이트되었습니다:', data);
         loadCurrentVote();
-        loadVoteHistory();
+        getVoteHistory();
     });
 
     socket.on('voteEnded', (data) => {
         console.log('투표가 마감되었습니다:', data);
         loadCurrentVote();
-        loadVoteHistory();
+        getVoteHistory();
     });
 });
 

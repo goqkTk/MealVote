@@ -156,11 +156,11 @@ router.post('/login', async (req, res) => {
         let user;
         if (isEmail) {
             // 이메일로 사용자 찾기
-            const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+            const [rows] = await pool.query('SELECT *, vote_history_count FROM users WHERE email = ?', [email]);
             user = rows[0];
         } else {
             // 이름으로 사용자 찾기
-            const [rows] = await pool.query('SELECT * FROM users WHERE name = ?', [email]);
+            const [rows] = await pool.query('SELECT *, vote_history_count FROM users WHERE name = ?', [email]);
             user = rows[0];
         }
 
@@ -185,7 +185,8 @@ router.post('/login', async (req, res) => {
             id: user.id,
             email: user.email,
             name: user.name,
-            userType: user.user_type
+            userType: user.user_type,
+            voteHistoryCount: user.vote_history_count
         };
 
         res.status(200).json({ 
@@ -252,6 +253,53 @@ router.get('/me', (req, res) => {
         return res.status(401).json({ error: '로그인이 필요합니다.' });
     }
     res.json({ user: req.session.user });
+});
+
+// 사용자 설정 업데이트
+router.post('/settings', async (req, res) => {
+    if (!req.session || !req.session.user) {
+        return res.status(401).json({ error: '로그인이 필요합니다.' });
+    }
+
+    const userId = req.session.user.id;
+    const { voteHistoryCount } = req.body;
+
+    // 유효성 검사 (0-20 사이의 정수인지 확인)
+    if (voteHistoryCount !== undefined) {
+        const count = parseInt(voteHistoryCount, 10);
+        if (isNaN(count) || count < 0 || count > 20) {
+            return res.status(400).json({ error: '투표 기록 표시 개수는 0부터 20 사이의 정수여야 합니다.' });
+        }
+    }
+
+    try {
+        const updateFields = [];
+        const updateValues = [];
+
+        if (voteHistoryCount !== undefined) {
+            updateFields.push('vote_history_count = ?');
+            updateValues.push(voteHistoryCount);
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ error: '업데이트할 설정이 없습니다.' });
+        }
+
+        const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+        updateValues.push(userId);
+
+        await pool.query(query, updateValues);
+
+        // 세션 정보 업데이트 (필요하다면)
+        if (voteHistoryCount !== undefined) {
+            req.session.user.voteHistoryCount = parseInt(voteHistoryCount, 10);
+        }
+
+        res.status(200).json({ message: '설정이 성공적으로 업데이트되었습니다.' });
+    } catch (error) {
+        console.error('설정 업데이트 오류:', error);
+        res.status(500).json({ error: '설정 업데이트 중 오류가 발생했습니다.' });
+    }
 });
 
 module.exports = {

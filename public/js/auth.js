@@ -49,10 +49,126 @@ async function checkAuthState() {
     }
 }
 
+// 사용자 설정 불러오기 및 저장 기능
+async function loadAndSaveUserSettings() {
+    const voteHistoryCountInput = document.getElementById('voteHistoryCount');
+
+    if (voteHistoryCountInput) {
+        let lastValidVoteHistoryCount = parseInt(voteHistoryCountInput.value, 10) || 2; // 마지막으로 유효했던 값 저장 (초기값 설정)
+
+        // 현재 사용자 설정 불러오기 (auth/me 엔드포인트를 활용)
+        try {
+            const response = await fetch('/api/auth/me');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.user && data.user.voteHistoryCount !== undefined) {
+                    const loadedValue = parseInt(data.user.voteHistoryCount, 10);
+                     if (!isNaN(loadedValue) && loadedValue >= 0 && loadedValue <= 20) {
+                        voteHistoryCountInput.value = loadedValue;
+                        lastValidVoteHistoryCount = loadedValue; // 불러온 값이 유효하면 마지막 유효값 업데이트
+                     } else {
+                         // 불러온 값이 유효하지 않으면 기본값으로 표시하고 마지막 유효값 설정
+                         voteHistoryCountInput.value = 2;
+                         lastValidVoteHistoryCount = 2;
+                     }
+                } else {
+                     // voteHistoryCount가 없으면 기본값으로 표시
+                     voteHistoryCountInput.value = 2;
+                     lastValidVoteHistoryCount = 2;
+                }
+            } else {
+                console.error('사용자 설정 불러오기 실패:', response.status);
+                 // 불러오기 실패 시 기본값으로 표시
+                 voteHistoryCountInput.value = 2;
+                 lastValidVoteHistoryCount = 2;
+            }
+        } catch (error) {
+            console.error('사용자 설정 불러오기 중 오류:', error);
+             // 오류 발생 시 기본값으로 표시
+             voteHistoryCountInput.value = 2;
+             lastValidVoteHistoryCount = 2;
+        }
+
+        // 입력 필드 값 변경 시 유효성 검사 및 값 되돌리기
+        voteHistoryCountInput.addEventListener('input', (e) => {
+            const currentValue = e.target.value;
+            const numValue = parseInt(currentValue, 10);
+
+            // 숫자가 아니거나 범위를 벗어나는 경우
+            if (isNaN(numValue) || numValue < 0 || numValue > 20) {
+                // 입력 필드 값을 마지막 유효한 값으로 되돌림
+                e.target.value = lastValidVoteHistoryCount;
+                // 선택 영역을 끝으로 이동 (사용자 경험 개선)
+                e.target.selectionStart = e.target.selectionEnd = e.target.value.length;
+            } else {
+                // 유효한 값이면 마지막 유효한 값 업데이트
+                lastValidVoteHistoryCount = numValue;
+            }
+        });
+
+        // 입력 필드 값 변경 완료 시 설정 저장 (change 이벤트 사용)
+        voteHistoryCountInput.addEventListener('change', async (e) => {
+            const newCount = parseInt(e.target.value, 10);
+            // change 이벤트에서도 최종 유효성 검사 (input 이벤트로 대부분 걸러지지만)
+            if (isNaN(newCount) || newCount < 0 || newCount > 20) {
+                 // 이 경우는 input 이벤트에서 이미 처리되었거나 발생해서는 안 되지만, 방어 코드
+                 console.warn('Change event with invalid value:', newCount);
+                 e.target.value = lastValidVoteHistoryCount; // 혹시 모르니 다시 되돌림
+                 return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ voteHistoryCount: newCount })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('투표 기록 표시 개수 설정 저장 완료:', data.message);
+                    // 설정 저장 성공 후 투표 기록 새로고침
+                    if (typeof getVoteHistory === 'function') {
+                        getVoteHistory();
+                    } else {
+                        console.error('getVoteHistory 함수를 찾을 수 없습니다.');
+                    }
+                    // 필요하다면 저장 성공 메시지를 사용자에게 표시할 수 있습니다.
+                } else {
+                    console.error('투표 기록 표시 개수 설정 저장 실패:', data.error);
+                    alert('설정 저장 중 오류가 발생했습니다: ' + data.error);
+                    // 저장 실패 시에도 UI 값은 마지막 유효값 유지
+                    e.target.value = lastValidVoteHistoryCount;
+                }
+            } catch (error) {
+                console.error('투표 기록 표시 개수 설정 저장 중 오류:', error);
+                alert('설정 저장 중 오류가 발생했습니다.');
+                 // 오류 발생 시에도 UI 값은 마지막 유효값 유지
+                 e.target.value = lastValidVoteHistoryCount;
+            }
+        });
+    }
+}
+
+// 설정 모달이 열릴 때 설정 값을 불러오도록 이벤트 리스너 추가
+document.addEventListener('DOMContentLoaded', function() {
+    const settingsModal = document.getElementById('settingsModal');
+    if (settingsModal) {
+        settingsModal.addEventListener('show.bs.modal', function () {
+            loadAndSaveUserSettings();
+        });
+    }
+});
+
 // 페이지 로드 시 인증 상태 확인
 // 로그인 페이지가 아닐 때만 인증 상태 확인 함수 호출
 if (!isAuthPage) {
     checkAuthState();
+    // 페이지 로드 시 설정 값도 함께 불러오려면 여기서 loadAndSaveUserSettings() 호출
+    // 현재는 모달 열릴 때만 불러오도록 되어 있습니다.
 }
 
 // 로그인 폼 제출
