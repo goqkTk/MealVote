@@ -26,6 +26,8 @@ const io = require('socket.io')(http, {
 // Socket.IO 인스턴스를 라우터에 전달
 setSocketIO(io);
 
+console.log(process.env.BASE_URL);
+
 // MySQL 세션 스토어 설정
 const sessionStore = new MySQLStore({
     expiration: 24 * 60 * 60 * 1000, // 세션 만료 시간 (1일)
