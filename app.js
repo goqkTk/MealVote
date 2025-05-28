@@ -26,8 +26,6 @@ const io = require('socket.io')(http, {
 // Socket.IO 인스턴스를 라우터에 전달
 setSocketIO(io);
 
-console.log(process.env.BASE_URL);
-
 // MySQL 세션 스토어 설정
 const sessionStore = new MySQLStore({
     expiration: 24 * 60 * 60 * 1000, // 세션 만료 시간 (1일)
@@ -146,5 +144,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT;
 const HOST = '0.0.0.0';
 http.listen(PORT, HOST, () => {
-    // ... existing code ...
+    console.log(`서버가 ${process.env.BASE_URL} 에서 실행되고 있습니다`);
 }); 
