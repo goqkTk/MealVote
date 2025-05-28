@@ -86,7 +86,6 @@ app.get('/verify/:encryptedToken', async (req, res) => {
 
         res.redirect('/login?success=verified');
     } catch (error) {
-        console.error('이메일 인증 오류:', error);
         res.redirect('/login?error=verification_failed');
     }
 });
@@ -138,7 +137,6 @@ app.post('/api/votes/:voteId/vote', requireAuth, async (req, res) => {
 
 // 전역 에러 핸들러
 app.use((err, req, res, next) => {
-    console.error(err.stack);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
 
@@ -146,5 +144,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT;
 const HOST = '0.0.0.0';
 http.listen(PORT, HOST, () => {
-    console.log(`서버가 http://${HOST}:${PORT} 에서 실행 중입니다.`);
+    // ... existing code ...
 }); 

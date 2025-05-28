@@ -45,7 +45,7 @@ async function checkAuthState() {
             }
         }
     } catch (error) {
-        console.error('인증 상태 확인 오류:', error);
+        // 인증 상태 확인 오류:
     }
 }
 
@@ -77,13 +77,13 @@ async function loadAndSaveUserSettings() {
                      lastValidVoteHistoryCount = 2;
                 }
             } else {
-                console.error('사용자 설정 불러오기 실패:', response.status);
+                // 사용자 설정 불러오기 실패:
                  // 불러오기 실패 시 기본값으로 표시
                  voteHistoryCountInput.value = 2;
                  lastValidVoteHistoryCount = 2;
             }
         } catch (error) {
-            console.error('사용자 설정 불러오기 중 오류:', error);
+            // 사용자 설정 불러오기 중 오류:
              // 오류 발생 시 기본값으로 표시
              voteHistoryCountInput.value = 2;
              lastValidVoteHistoryCount = 2;
@@ -112,8 +112,6 @@ async function loadAndSaveUserSettings() {
             // change 이벤트에서도 최종 유효성 검사 (input 이벤트로 대부분 걸러지지만)
             if (isNaN(newCount) || newCount < 0 || newCount > 20) {
                  // 이 경우는 input 이벤트에서 이미 처리되었거나 발생해서는 안 되지만, 방어 코드
-                 console.warn('Change event with invalid value:', newCount);
-                 e.target.value = lastValidVoteHistoryCount; // 혹시 모르니 다시 되돌림
                  return;
             }
 
@@ -129,22 +127,21 @@ async function loadAndSaveUserSettings() {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log('투표 기록 표시 개수 설정 저장 완료:', data.message);
-                    // 설정 저장 성공 후 투표 기록 새로고침
+                    // 투표 기록 표시 개수 설정 저장 완료:
                     if (typeof getVoteHistory === 'function') {
                         getVoteHistory();
                     } else {
-                        console.error('getVoteHistory 함수를 찾을 수 없습니다.');
+                        // getVoteHistory 함수를 찾을 수 없습니다.
                     }
                     // 필요하다면 저장 성공 메시지를 사용자에게 표시할 수 있습니다.
                 } else {
-                    console.error('투표 기록 표시 개수 설정 저장 실패:', data.error);
+                    // 투표 기록 표시 개수 설정 저장 실패:
                     alert('설정 저장 중 오류가 발생했습니다: ' + data.error);
                     // 저장 실패 시에도 UI 값은 마지막 유효값 유지
                     e.target.value = lastValidVoteHistoryCount;
                 }
             } catch (error) {
-                console.error('투표 기록 표시 개수 설정 저장 중 오류:', error);
+                // 투표 기록 표시 개수 설정 저장 중 오류:
                 alert('설정 저장 중 오류가 발생했습니다.');
                  // 오류 발생 시에도 UI 값은 마지막 유효값 유지
                  e.target.value = lastValidVoteHistoryCount;
@@ -195,7 +192,7 @@ if (document.getElementById('loginForm')) {
                 showAuthError(data.error);
             }
         } catch (error) {
-            console.error('로그인 중 오류:', error);
+            // 로그인 중 오류:
             showAuthError('로그인 중 오류가 발생했습니다.');
         }
     });
@@ -241,7 +238,7 @@ if (document.getElementById('registerForm')) {
                 showAuthError(data.error); // alert 대신 에러 메시지 표시
             }
         } catch (error) {
-            console.error('회원가입 중 오류:', error);
+            // 회원가입 중 오류:
             showAuthError('회원가입 중 오류가 발생했습니다.'); // alert 대신 에러 메시지 표시
         }
     });
@@ -263,7 +260,7 @@ window.logout = async function() {
             alert('로그아웃 중 오류가 발생했습니다.');
         }
     } catch (error) {
-        console.error('로그아웃 오류:', error);
+        // 로그아웃 오류:
         alert('로그아웃 중 오류가 발생했습니다.');
     }
 }
@@ -342,14 +339,14 @@ if (document.getElementById('changePasswordForm')) {
             } else {
                 // HTTP 상태 코드가 400이면 유효성 검사 오류이므로 콘솔에 로깅하지 않음
                 if (response.status !== 400) {
-                    console.error('비밀번호 변경 중 오류:', response.status, data);
+                    // 비밀번호 변경 중 오류:
                 }
                 errorElement.textContent = data.error || '비밀번호 변경 중 오류가 발생했습니다.';
                 errorElement.classList.remove('d-none');
             }
         } catch (error) {
             // 네트워크 오류 등 예상치 못한 오류
-            console.error('비밀번호 변경 중 네트워크 오류:', error);
+            // 비밀번호 변경 중 네트워크 오류:
             errorElement.textContent = '비밀번호 변경 중 네트워크 오류가 발생했습니다.';
             errorElement.classList.remove('d-none');
         }

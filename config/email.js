@@ -14,9 +14,9 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify(function(error, success) {
     if (error) {
-        console.error('이메일 서버 연결 오류:', error);
+        // ... existing code ...
     } else {
-        console.log('이메일 서버 연결 성공');
+        // ... existing code ...
     }
 });
 

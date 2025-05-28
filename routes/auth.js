@@ -33,7 +33,6 @@ function decryptUrl(text) {
         decrypted += decipher.final('utf8');
         return decrypted;
     } catch (error) {
-        console.error('URL 복호화 오류:', error);
         throw new Error('유효하지 않은 인증 링크입니다.');
     }
 }
@@ -98,9 +97,7 @@ router.post('/register', async (req, res) => {
                     </body>
                 `
             });
-            console.log('인증 이메일 전송 성공:', email);
         } catch (emailError) {
-            console.error('이메일 전송 오류:', emailError);
             return res.status(201).json({ 
                 message: '회원가입이 완료되었습니다. 이메일 전송에 실패했습니다. 관리자에게 문의해주세요.',
                 error: '이메일 전송 실패'
@@ -109,7 +106,6 @@ router.post('/register', async (req, res) => {
 
         res.status(201).json({ message: '회원가입이 완료되었습니다. 이메일을 확인해주세요.' });
     } catch (error) {
-        console.error('회원가입 오류:', error);
         res.status(500).json({ error: '회원가입 중 오류가 발생했습니다.' });
     }
 });
@@ -140,7 +136,6 @@ router.get('/verify/:encryptedToken', async (req, res) => {
         // 인증 성공 시 로그인 페이지로 리다이렉트
         res.redirect('/login?success=verified');
     } catch (error) {
-        console.error('이메일 인증 오류:', error);
         res.redirect('/login?error=verification_failed');
     }
 });
@@ -195,7 +190,6 @@ router.post('/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('로그인 오류:', error);
         res.status(500).json({ error: '로그인 중 오류가 발생했습니다.' });
     }
 });
@@ -242,7 +236,6 @@ router.post('/change-password', async (req, res) => {
 
         res.status(200).json({ message: '비밀번호가 성공적으로 변경되었습니다.' });
     } catch (error) {
-        console.error('비밀번호 변경 오류:', error);
         res.status(500).json({ error: '비밀번호 변경 중 오류가 발생했습니다.' });
     }
 });
@@ -297,7 +290,6 @@ router.post('/settings', async (req, res) => {
 
         res.status(200).json({ message: '설정이 성공적으로 업데이트되었습니다.' });
     } catch (error) {
-        console.error('설정 업데이트 오류:', error);
         res.status(500).json({ error: '설정 업데이트 중 오류가 발생했습니다.' });
     }
 });

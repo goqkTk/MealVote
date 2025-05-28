@@ -250,7 +250,10 @@
                     <!-- 알림 설정 섹션 -->
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
                         <div>
-                            <label class="form-check-label" for="notificationToggle">푸시 알림</label>
+                            <div class="d-flex align-items-center">
+                                <label class="form-check-label me-1" for="notificationToggle">푸시 알림</label>
+                                <i class="fas fa-question-circle" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#notificationHelpModal"></i>
+                            </div>
                             <small class="text-muted d-block">투표 생성 시 알림 수신 설정</small>
                         </div>
                         <div class="d-flex align-items-center">
@@ -327,6 +330,59 @@
                          -->
                     </div>
 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 푸시 알림 도움말 모달 -->
+    <div class="modal fade" id="notificationHelpModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">푸시 알림 설정 가이드</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" id="notificationHelpTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="desktop-tab" data-bs-toggle="tab" data-bs-target="#desktop" type="button" role="tab">데스크탑</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="android-tab" data-bs-toggle="tab" data-bs-target="#android" type="button" role="tab">안드로이드</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ios-tab" data-bs-toggle="tab" data-bs-target="#ios" type="button" role="tab">iOS</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="notificationHelpTabContent">
+                        <div class="tab-pane fade show active" id="desktop" role="tabpanel">
+                            <h6>데스크탑 브라우저 설정 방법</h6>
+                            <ol class="mb-0">
+                                <li>브라우저 상단의 주소창 왼쪽에 있는 자물쇠/정보 아이콘을 클릭합니다.</li>
+                                <li>알림 권한을 '허용'으로 설정합니다.</li>
+                                <li>설정 모달에서 푸시 알림 토글을 켜기로 설정합니다.</li>
+                            </ol>
+                        </div>
+                        <div class="tab-pane fade" id="android" role="tabpanel">
+                            <h6>안드로이드 설정 방법</h6>
+                            <ol class="mb-0">
+                                <li>Chrome 브라우저를 실행합니다.</li>
+                                <li>주소창에 'chrome://settings/content/notifications'를 입력합니다.</li>
+                                <li>MealVote 사이트를 찾아 알림을 '허용'으로 설정합니다.</li>
+                                <li>설정 모달에서 푸시 알림 토글을 켜기로 설정합니다.</li>
+                            </ol>
+                        </div>
+                        <div class="tab-pane fade" id="ios" role="tabpanel">
+                            <h6>iOS 설정 방법</h6>
+                            <ol class="mb-0">
+                                <li>Safari 브라우저를 실행합니다.</li>
+                                <li>설정 앱을 열고 Safari를 선택합니다.</li>
+                                <li>'알림'을 찾아 MealVote 사이트의 알림을 허용합니다.</li>
+                                <li>설정 모달에서 푸시 알림 토글을 켜기로 설정합니다.</li>
+                            </ol>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

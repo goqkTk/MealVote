@@ -12,7 +12,6 @@ router.get('/', requireAuth, async (req, res) => {
         `);
         res.json(restaurants);
     } catch (error) {
-        console.error('가게 목록 조회 오류:', error);
         res.status(500).json({ error: '가게 목록을 가져오는 중 오류가 발생했습니다.' });
     }
 });
@@ -47,7 +46,6 @@ router.get('/:id/menus', requireAuth, async (req, res) => {
 
         res.json(menusWithRestaurant);
     } catch (error) {
-        console.error('가게 정보 조회 오류:', error);
         res.status(500).json({ error: '가게 정보를 가져오는 중 오류가 발생했습니다.' });
     }
 });
@@ -113,7 +111,6 @@ router.post('/', requireAuth, async (req, res) => {
     } catch (error) {
         // 트랜잭션 롤백
         await pool.query('ROLLBACK');
-        console.error('가게 추가 오류:', error);
         res.status(500).json({ error: '가게 추가 중 오류가 발생했습니다.' });
     }
 });
@@ -156,7 +153,6 @@ router.put('/:id', requireAuth, async (req, res) => {
     } catch (error) {
         // 트랜잭션 롤백
         await pool.query('ROLLBACK');
-        console.error('가게 수정 오류:', error);
         res.status(500).json({ error: '가게 수정 중 오류가 발생했습니다.' });
     }
 });
@@ -171,7 +167,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
         await pool.query('DELETE FROM restaurants WHERE id = ?', [req.params.id]);
         res.json({ message: '가게가 삭제되었습니다.' });
     } catch (error) {
-        console.error('가게 삭제 오류:', error);
         res.status(500).json({ error: '가게 삭제 중 오류가 발생했습니다.' });
     }
 });

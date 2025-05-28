@@ -61,7 +61,6 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Error saving subscription:', error);
         res.status(500).json({ error: 'Failed to save subscription.' });
     }
 });
@@ -231,8 +230,6 @@ router.post('/', requireAuth, async (req, res) => {
         res.status(201).json({ message: '투표가 생성되었습니다.' });
 
         // --- 푸시 알림 전송 로직 추가 --- START
-        console.log('새로운 투표 생성됨. 푸시 알림 전송 시도...');
-        
         // 푸시 알림을 보낼 대상 사용자들의 구독 정보 가져오기
         // 여기서는 모든 사용자에게 보낸다고 가정하고 push_subscription이 있는 모든 사용자를 조회합니다.
         const [subscribers] = await pool.query(
@@ -248,20 +245,16 @@ router.post('/', requireAuth, async (req, res) => {
             }
         });
 
-        // 각 구독자에게 알림 전송
-        subscribers.forEach(async (subscriber) => {
+        // 구독자들에게 푸시 알림 전송 시도
+        for (const subscriber of subscribers) {
             try {
                 const subscription = JSON.parse(subscriber.push_subscription);
                 const sendResult = await webpush.sendNotification(subscription, notificationPayload);
-                console.log('Push notification sent to subscriber.', sendResult);
             } catch (error) {
-                console.error('Failed to send push notification to subscriber:', error); // 에러 객체 자체를 먼저 로그
+                // 구독 정보 파싱 오류 또는 푸시 전송 오류 처리
                 
-                // 에러 객체의 모든 속성을 JSON 형태로 출력
-                console.error('Detailed Push Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-
-                // 유효하지 않거나 만료된 구독 정보는 데이터베이스에서 삭제하는 로직 추가
-                if (error.statusCode === 410) { // Gone - 구독이 만료됨
+                // 만료된 구독 정보 처리 (GCM 오류 코드 410)
+                if (error.statusCode === 410) {
                     console.log('Subscription expired, removing from database.');
                      try {
                          // TODO: 특정 사용자의 구독 정보만 삭제하도록 쿼리 수정 필요
@@ -272,20 +265,13 @@ router.post('/', requireAuth, async (req, res) => {
                          console.error('Error removing expired subscription from database:', dbError);
                      }
                 }
-                // statusCode 410이 아닌 경우에도 error.body가 있다면 출력 (기존 else 블록 유지)
-                 else if (error.body) {
-                     console.error('Push notification sending error details:', error.body);
-                 } else {
-                     console.warn('Push notification failed, but no detailed body was provided.');
-                 }
             }
-        });
+        }
         // --- 푸시 알림 전송 로직 추가 --- END
 
     } catch (error) {
         // 트랜잭션 롤백
         await pool.query('ROLLBACK');
-        console.error('투표 생성 중 오류가 발생했습니다:', error);
         res.status(500).json({ error: '투표 생성 중 오류가 발생했습니다.' });
     }
 });
@@ -339,11 +325,11 @@ router.post('/:voteId/vote', requireAuth, async (req, res) => {
         if (io) {
             io.emit('voteUpdated', { 
                 voteId: voteId,
-                message: existingVoteItems.length > 0 ? '투표가 변경되었습니다.' : '투표가 완료되었습니다.'
+                message: '투표가 업데이트되었습니다.'
             });
         }
 
-        res.json({ message: existingVoteItems.length > 0 ? '투표가 변경되었습니다.' : '투표가 완료되었습니다.' });
+        res.json({ message: '투표가 완료되었습니다.' });
 
     } catch (error) {
         res.status(500).json({ error: '투표 중 오류가 발생했습니다.' });
@@ -352,31 +338,24 @@ router.post('/:voteId/vote', requireAuth, async (req, res) => {
 
 // 투표 마감 API
 router.post('/:voteId/end', requireAuth, async (req, res) => {
+    if (req.user.userType !== 'teacher') {
+        return res.status(403).json({ error: '선생님만 투표를 마감할 수 있습니다.' });
+    }
+
+    const voteId = req.params.voteId;
+
     try {
-        const { voteId } = req.params;
-        const userId = req.user.id;
-
-        // 사용자가 선생님인지 확인
-        const [users] = await pool.query(
-            'SELECT user_type FROM users WHERE id = ?',
-            [userId]
-        );
-
-        if (users.length === 0 || users[0].user_type !== 'teacher') {
-            return res.status(403).json({ error: '선생님만 투표를 마감할 수 있습니다.' });
-        }
-
-        // 투표 상태 업데이트
+        // 투표 마감 시간 업데이트
         await pool.query(
             'UPDATE votes SET end_time = NOW() WHERE id = ?',
             [voteId]
         );
 
-        // 실시간 업데이트를 위해 이벤트 발생
+        // 실시간 업데이트를 위한 이벤트 발생
         if (io) {
             io.emit('voteEnded', { 
                 voteId: voteId,
-                message: '투표가 마감되었습니다.' 
+                message: '투표가 마감되었습니다.'
             });
         }
 

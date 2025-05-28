@@ -55,29 +55,20 @@ async function getCurrentVote() {
 // 투표 기록 가져오기
 async function getVoteHistory() {
     try {
-        console.log('Fetching vote history with user settings...');
         // 사용자 설정에서 투표 기록 표시 개수 가져오기
         const userSettingsResponse = await fetch('/api/auth/me');
         let limit = 2; // 기본값
         
         if (userSettingsResponse.ok) {
             const userData = await userSettingsResponse.json();
-            console.log('User data fetched:', userData);
             if (userData.user && userData.user.voteHistoryCount !== undefined) {
                 limit = userData.user.voteHistoryCount;
-                console.log('Using vote history limit from user settings:', limit);
-            } else {
-                 console.log('voteHistoryCount not found in user data, using default:', limit);
             }
         } else {
-            console.error('Failed to fetch user settings for vote history limit:', userSettingsResponse.status);
         }
-
-        console.log('Final limit for fetching vote history:', limit);
         const response = await fetch(`/api/votes/history?limit=${limit}`);
         if (response.ok) {
             const votes = await response.json();
-            console.log('Vote history fetched:', votes.length, 'items');
             displayVoteHistory(votes, limit);
         } else {
              console.error('Failed to fetch vote history:', response.status);
@@ -285,7 +276,7 @@ async function unregisterPush() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ subscription })
+                body: JSON.stringify({ endpoint: subscription.endpoint })
             });
         }
     } catch (error) {
@@ -377,7 +368,7 @@ function displayAllVoteHistory(votes) {
 // 전체 투표 기록 가져오기 및 모달 표시
 async function showAllVoteHistory() {
     try {
-        const response = await fetch('/api/votes/history'); // limit 없이 모든 기록 가져오기
+        const response = await fetch('/api/votes/history?limit=all');
         if (response.ok) {
             const votes = await response.json();
             displayAllVoteHistory(votes);
@@ -418,7 +409,7 @@ async function vote(voteId, itemId) {
 // 가게 목록 로드 (선생님용)
 async function loadRestaurants() {
     try {
-        const response = await fetch('/api/votes/restaurants');
+        const response = await fetch('/api/restaurants');
         const restaurants = await response.json();
         
         const restaurantList = document.getElementById('restaurantList');
@@ -942,43 +933,33 @@ socket.on('reconnect_error', (error) => {
 
 // Service Worker 등록 및 푸시 구독 요청
 async function registerPush() {
-  console.log('Attempting to register service worker and subscribe to push.');
 
   // Service Worker 지원 확인
   if (!('serviceWorker' in navigator)) {
-    console.log('Service workers are not supported by this browser.');
     return;
   }
 
   // Push Manager 지원 확인
   if (!('PushManager' in window)) {
-    console.log('Push notifications are not supported by this browser.');
     return;
   }
 
   try {
     // Service Worker 등록
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registered:', registration);
 
     // 현재 푸시 구독 상태 확인
     const existingSubscription = await registration.pushManager.getSubscription();
 
     if (existingSubscription) {
-      console.log('Existing subscription found.');
       await sendSubscriptionToServer(existingSubscription);
-      console.log('Existing subscription resent to server.');
     } else {
-      console.log('No existing subscription, requesting new one.');
-
       // 서버에서 VAPID 공개 키 가져오기
       const vapidPublicKeyResponse = await fetch('/api/votes/vapid-public-key');
       if (!vapidPublicKeyResponse.ok) {
-          console.error('Failed to fetch VAPID public key.');
           return;
       }
       const { vapidPublicKey } = await vapidPublicKeyResponse.json();
-      console.log('Fetched VAPID Public Key:', vapidPublicKey);
 
       try {
         // iOS Safari를 위한 특별한 처리
@@ -989,7 +970,6 @@ async function registerPush() {
           // iOS Safari에서는 알림 권한을 먼저 요청
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
-            console.log('Notification permission denied');
             return;
           }
         }
@@ -1011,7 +991,6 @@ async function registerPush() {
       }
     }
   } catch (error) {
-    console.error('Service Worker registration or push subscription failed:', error);
   }
 }
 
@@ -1044,12 +1023,9 @@ async function sendSubscriptionToServer(subscription) {
     });
 
     if (response.ok) {
-      console.log('Subscription sent to server successfully.');
     } else {
-      console.error('Failed to send subscription to server.');
     }
   } catch (error) {
-    console.error('Error sending subscription to server:', error);
   }
 }
 
