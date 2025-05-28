@@ -130,16 +130,27 @@ router.get('/current', requireAuth, async (req, res) => {
 // 투표 기록 조회
 router.get('/history', requireAuth, async (req, res) => {
     try {
-        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+        let limit;
+        if (req.query.limit === 'all') {
+            limit = null; // 제한 없음
+        } else {
+            limit = req.query.limit ? parseInt(req.query.limit) : 10;
+        }
 
-        const [votes] = await pool.query(`
+        let votesQuery = `
             SELECT v.*, r.name as restaurantName
             FROM votes v
             JOIN restaurants r ON v.restaurant_id = r.id
             WHERE v.end_time <= NOW()
             ORDER BY v.end_time DESC
-            LIMIT ?
-        `, [limit]);
+        `;
+        let votesParams = [];
+        if (limit) {
+            votesQuery += ' LIMIT ?';
+            votesParams.push(limit);
+        }
+
+        const [votes] = await pool.query(votesQuery, votesParams);
 
         // 각 투표의 메뉴와 투표 수 조회 및 날짜 필드 형식 변환
         for (let vote of votes) {
@@ -167,7 +178,6 @@ router.get('/history', requireAuth, async (req, res) => {
 
         res.json(votes);
     } catch (error) {
-        console.error('/api/votes/history 에러:', error);
         res.status(500).json({ error: '투표 기록을 가져오는 중 오류가 발생했습니다.' });
     }
 });
