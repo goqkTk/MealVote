@@ -42,34 +42,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 세션 설정
 app.use(session({
     secret: process.env.SESSION_SECRET,
-    store: sessionStore,
+    store: sessionStore, // 데이터베이스 스토어 사용
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: true, // 항상 HTTPS 사용
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: 'strict',
-        maxAge: 3600000, // 1시간으로 단축
-        path: '/',
-        domain: process.env.COOKIE_DOMAIN || undefined
+        maxAge: 24 * 60 * 60 * 1000 // 24시간
     }
 }));
-
-// 세션 활동 모니터링 미들웨어 추가
-app.use((req, res, next) => {
-    if (req.session && req.session.user) {
-        const lastActivity = req.session.lastActivity || Date.now();
-        const inactiveTime = Date.now() - lastActivity;
-        
-        if (inactiveTime > 1800000) { // 30분 이상 비활성
-            req.session.destroy();
-            return res.status(401).json({ error: '세션이 만료되었습니다.' });
-        }
-        
-        req.session.lastActivity = Date.now();
-    }
-    next();
-});
 
 // 뷰 엔진 설정
 app.set('view engine', 'ejs');
@@ -155,33 +137,7 @@ app.post('/api/votes/:voteId/vote', requireAuth, async (req, res) => {
 
 // 전역 에러 핸들러
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
-
-    // 클라이언트 에러 (400번대)
-    if (err.status >= 400 && err.status < 500) {
-        return res.status(err.status).json({
-            error: err.message || '잘못된 요청입니다.'
-        });
-    }
-
-    // 인증 관련 에러
-    if (err.name === 'UnauthorizedError') {
-        return res.status(401).json({
-            error: '인증이 필요합니다.'
-        });
-    }
-
-    // 데이터베이스 에러
-    if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(409).json({
-            error: '이미 존재하는 데이터입니다.'
-        });
-    }
-
-    // 서버 에러 (500번대)
-    res.status(500).json({
-        error: '서버 오류가 발생했습니다.'
-    });
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
 
 // 서버 시작

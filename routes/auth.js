@@ -13,11 +13,6 @@ const IV_LENGTH = 16;
 // JWT 시크릿 키
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 로그인 시도 제한을 위한 Map
-const loginAttempts = new Map();
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_TIME = 15 * 60 * 1000; // 15분
-
 // URL 암호화 함수
 function encryptUrl(text) {
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -148,22 +143,8 @@ router.get('/verify/:encryptedToken', async (req, res) => {
 // 로그인
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    const ip = req.ip;
 
     try {
-        // 로그인 시도 횟수 확인
-        const attempts = loginAttempts.get(ip) || { count: 0, timestamp: Date.now() };
-        if (attempts.count >= MAX_ATTEMPTS) {
-            const timeLeft = LOCKOUT_TIME - (Date.now() - attempts.timestamp);
-            if (timeLeft > 0) {
-                return res.status(429).json({ 
-                    error: `너무 많은 로그인 시도. ${Math.ceil(timeLeft / 60000)}분 후에 다시 시도해주세요.` 
-                });
-            } else {
-                loginAttempts.delete(ip);
-            }
-        }
-
         // 입력된 값이 이메일 형식인지 확인
         const isEmail = email.includes('@');
 
@@ -179,7 +160,6 @@ router.post('/login', async (req, res) => {
         }
 
         if (!user) {
-            loginAttempts.set(ip, { count: attempts.count + 1, timestamp: Date.now() });
             return res.status(401).json({ error: '이메일/이름 또는 비밀번호가 올바르지 않습니다.' });
         }
 
@@ -192,33 +172,21 @@ router.post('/login', async (req, res) => {
         const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
-            loginAttempts.set(ip, { count: attempts.count + 1, timestamp: Date.now() });
             return res.status(401).json({ error: '이메일/이름 또는 비밀번호가 올바르지 않습니다.' });
         }
 
-        // 로그인 성공 시 시도 횟수 초기화
-        loginAttempts.delete(ip);
+        // 세션에 사용자 정보 저장
+        req.session.user = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            userType: user.user_type,
+            voteHistoryCount: user.vote_history_count
+        };
 
-        // 세션 재생성
-        req.session.regenerate((err) => {
-            if (err) {
-                return res.status(500).json({ error: '세션 생성 중 오류가 발생했습니다.' });
-            }
-
-            // 세션에 사용자 정보 저장
-            req.session.user = {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                userType: user.user_type,
-                voteHistoryCount: user.vote_history_count
-            };
-            req.session.lastActivity = Date.now();
-
-            res.status(200).json({ 
-                message: '로그인 성공',
-                user: req.session.user
-            });
+        res.status(200).json({ 
+            message: '로그인 성공',
+            user: req.session.user
         });
 
     } catch (error) {
