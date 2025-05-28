@@ -167,6 +167,7 @@ router.get('/history', requireAuth, async (req, res) => {
 
         res.json(votes);
     } catch (error) {
+        console.error('/api/votes/history 에러:', error);
         res.status(500).json({ error: '투표 기록을 가져오는 중 오류가 발생했습니다.' });
     }
 });
